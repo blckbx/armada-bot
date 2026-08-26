@@ -7,9 +7,12 @@ import {
 import type { NostrEvent } from "nostr-tools/pure";
 import {
   createDirectMessage,
+  createTypingIndicator,
   unwrapDirectMessage,
   type CreatedDirectMessage,
+  type CreatedTypingIndicator,
   type CreateDirectMessageInput,
+  type CreateTypingIndicatorInput,
 } from "./nip17.js";
 import {
   createAuthenticatedIngressRateLimiter,
@@ -18,6 +21,7 @@ import {
 import type { ReplayGate } from "./replay-gate.js";
 
 const HEX_32 = /^[0-9a-f]{64}$/u;
+export const ARMADA_TYPING_REFRESH_MILLISECONDS = 4_000;
 
 export class InboundDispatchError extends Error {
   constructor(message = "Inbound direct message dispatch failed.") {
@@ -69,6 +73,9 @@ export interface InboundProcessorOptions {
   readonly createReply?: (
     input: CreateDirectMessageInput,
   ) => CreatedDirectMessage;
+  readonly createTyping?: (
+    input: CreateTypingIndicatorInput,
+  ) => CreatedTypingIndicator;
   readonly nowSeconds?: () => number;
   readonly nowMilliseconds?: () => number;
   readonly rateLimiter?: AuthenticatedIngressRateLimiter;
@@ -92,6 +99,7 @@ export function createInboundProcessor(
     options.resolveIngress ?? resolveStableChannelMessageIngress;
   const dispatch = options.dispatch ?? dispatchInboundDirectDmWithRuntime;
   const createReply = options.createReply ?? createDirectMessage;
+  const createTyping = options.createTyping ?? createTypingIndicator;
   const nowSeconds =
     options.nowSeconds ?? (() => Math.floor(Date.now() / 1_000));
   const rateLimiter =
@@ -172,93 +180,184 @@ export function createInboundProcessor(
         const deliveredMessageIds: string[] = [];
         const warnings = new Set<string>();
         const callbackState = { failed: false };
-        await dispatch({
-          cfg: withAutomaticVisibleReplies(options.cfg),
-          runtime: options.runtime,
-          channel: "nostr",
-          channelLabel: "Armada DM",
-          accountId: options.accountId,
-          peer: { kind: "direct", id: senderPublicKey },
-          senderId: senderPublicKey,
-          senderAddress,
-          recipientAddress: `nostr:${options.identity.publicKey}`,
-          conversationLabel: senderPublicKey,
-          rawBody: authenticated.content,
-          messageId: authenticated.rumorId,
-          timestamp: authenticated.createdAt * 1_000,
-          ...(ingress.commandAccess.requested
-            ? { commandAuthorized: ingress.commandAccess.authorized }
-            : {}),
-          deliver: async (payload) => {
-            if (isAborted(signal)) return;
-            const text = formatOutboundText(
-              options.runtime,
-              options.cfg,
-              options.accountId,
-              extractText(payload),
-            );
-            if (text.trim() === "" || isAborted(signal)) return;
-            let relayUrls: string[];
-            try {
-              relayUrls = await options.resolveRecipientRelays(senderPublicKey);
-            } catch {
-              throw new DirectMessageDeliveryError();
-            }
-            if (isAborted(signal)) return;
-            if (relayUrls.length === 0) throw new DirectMessageDeliveryError();
-            let reply: CreatedDirectMessage;
-            try {
-              reply = createReply({
-                senderSecretKey: options.identity.secretKey,
-                recipientPublicKey: senderPublicKey,
-                content: text,
-                replyToEventId: authenticated.rumorId,
-                now: nowSeconds(),
-              });
-            } catch {
-              throw new DirectMessageDeliveryError();
-            }
-            if (isAborted(signal)) return;
-            try {
-              await options.publishRecipient(relayUrls, reply.recipient.wrap);
-            } catch {
-              throw new DirectMessageDeliveryError();
-            }
-            deliveredMessageIds.push(reply.logicalMessageId);
-            if (isAborted(signal)) return;
-            try {
-              await options.publishSelfCopy(reply.selfCopy.wrap);
-            } catch {
-              warnings.add(RECOVERY_COPY_WARNING);
-            }
-          },
-          onRecordError: () => {
-            callbackState.failed = true;
-          },
-          onDispatchError: () => {
-            callbackState.failed = true;
-          },
+        const resolveTurnRecipientRelays = createTurnRelayResolver(() =>
+          options.resolveRecipientRelays(senderPublicKey),
+        );
+        const stopTyping = startTypingHeartbeat({
+          senderSecretKey: options.identity.secretKey,
+          recipientPublicKey: senderPublicKey,
+          resolveRecipientRelays: resolveTurnRecipientRelays,
+          publishRecipient: options.publishRecipient,
+          createTyping,
+          nowSeconds,
+          signal,
         });
-        if (callbackState.failed) throw new InboundDispatchError();
-        if (isAborted(signal)) {
-          if (deliveredMessageIds.length > 0) await claim.commit();
-          else claim.release();
-          return { handled: false };
+        try {
+          await dispatch({
+            cfg: withAutomaticVisibleReplies(options.cfg),
+            runtime: options.runtime,
+            channel: "nostr",
+            channelLabel: "Armada DM",
+            accountId: options.accountId,
+            peer: { kind: "direct", id: senderPublicKey },
+            senderId: senderPublicKey,
+            senderAddress,
+            recipientAddress: `nostr:${options.identity.publicKey}`,
+            conversationLabel: senderPublicKey,
+            rawBody: authenticated.content,
+            messageId: authenticated.rumorId,
+            timestamp: authenticated.createdAt * 1_000,
+            ...(ingress.commandAccess.requested
+              ? { commandAuthorized: ingress.commandAccess.authorized }
+              : {}),
+            deliver: async (payload) => {
+              if (isAborted(signal)) return;
+              const text = formatOutboundText(
+                options.runtime,
+                options.cfg,
+                options.accountId,
+                extractText(payload),
+              );
+              if (text.trim() === "" || isAborted(signal)) return;
+              let relayUrls: string[];
+              try {
+                relayUrls = await resolveTurnRecipientRelays();
+              } catch {
+                // A transient lookup used by typing must not poison the reply.
+                try {
+                  relayUrls = await resolveTurnRecipientRelays();
+                } catch {
+                  throw new DirectMessageDeliveryError();
+                }
+              }
+              if (isAborted(signal)) return;
+              if (relayUrls.length === 0)
+                throw new DirectMessageDeliveryError();
+              let reply: CreatedDirectMessage;
+              try {
+                reply = createReply({
+                  senderSecretKey: options.identity.secretKey,
+                  recipientPublicKey: senderPublicKey,
+                  content: text,
+                  replyToEventId: authenticated.rumorId,
+                  now: nowSeconds(),
+                });
+              } catch {
+                throw new DirectMessageDeliveryError();
+              }
+              if (isAborted(signal)) return;
+              try {
+                await options.publishRecipient(relayUrls, reply.recipient.wrap);
+              } catch {
+                throw new DirectMessageDeliveryError();
+              }
+              deliveredMessageIds.push(reply.logicalMessageId);
+              if (isAborted(signal)) return;
+              try {
+                await options.publishSelfCopy(reply.selfCopy.wrap);
+              } catch {
+                warnings.add(RECOVERY_COPY_WARNING);
+              }
+            },
+            onRecordError: () => {
+              callbackState.failed = true;
+            },
+            onDispatchError: () => {
+              callbackState.failed = true;
+            },
+          });
+          if (callbackState.failed) throw new InboundDispatchError();
+          if (isAborted(signal)) {
+            if (deliveredMessageIds.length > 0) await claim.commit();
+            else claim.release();
+            return { handled: false };
+          }
+          await claim.commit();
+          return {
+            handled: true,
+            ...(deliveredMessageIds.length === 0
+              ? {}
+              : { messageIds: deliveredMessageIds }),
+            ...(warnings.size === 0 ? {} : { warnings: [...warnings] }),
+          };
+        } finally {
+          stopTyping();
         }
-        await claim.commit();
-        return {
-          handled: true,
-          ...(deliveredMessageIds.length === 0
-            ? {}
-            : { messageIds: deliveredMessageIds }),
-          ...(warnings.size === 0 ? {} : { warnings: [...warnings] }),
-        };
       } catch (error) {
         claim.release(error);
         if (error instanceof DirectMessageDeliveryError) throw error;
         throw new InboundDispatchError();
       }
     },
+  };
+}
+
+function startTypingHeartbeat(input: {
+  senderSecretKey: Uint8Array;
+  recipientPublicKey: string;
+  resolveRecipientRelays: () => Promise<string[]>;
+  publishRecipient: (
+    relayUrls: string[],
+    event: NostrEvent,
+  ) => Promise<unknown>;
+  createTyping: (input: CreateTypingIndicatorInput) => CreatedTypingIndicator;
+  nowSeconds: () => number;
+  signal: AbortSignal | undefined;
+}): () => void {
+  let stopped = input.signal?.aborted ?? false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const stop = (): void => {
+    stopped = true;
+    if (timer !== undefined) clearTimeout(timer);
+    input.signal?.removeEventListener("abort", stop);
+  };
+  const pulse = async (): Promise<void> => {
+    try {
+      const relayUrls = await input.resolveRecipientRelays();
+      if (stopped || relayUrls.length === 0) return;
+      const indicator = input.createTyping({
+        senderSecretKey: input.senderSecretKey,
+        recipientPublicKey: input.recipientPublicKey,
+        now: input.nowSeconds(),
+      });
+      await input.publishRecipient(relayUrls, indicator.wrap);
+    } catch {
+      // Typing is transient UX metadata and must never fail the admitted turn.
+    } finally {
+      if (!stopped) {
+        timer = setTimeout(() => {
+          void pulse();
+        }, ARMADA_TYPING_REFRESH_MILLISECONDS);
+      }
+    }
+  };
+
+  if (!stopped) {
+    input.signal?.addEventListener("abort", stop, { once: true });
+    void pulse();
+  }
+  return stop;
+}
+
+function createTurnRelayResolver(
+  resolve: () => Promise<string[]>,
+): () => Promise<string[]> {
+  let cached: string[] | undefined;
+  let pending: Promise<string[]> | undefined;
+
+  return () => {
+    if (cached !== undefined) return Promise.resolve(cached);
+    if (pending !== undefined) return pending;
+    const lookup = resolve().then((relayUrls) => {
+      cached = relayUrls;
+      return relayUrls;
+    });
+    const tracked = lookup.finally(() => {
+      if (pending === tracked) pending = undefined;
+    });
+    pending = tracked;
+    return tracked;
   };
 }
 

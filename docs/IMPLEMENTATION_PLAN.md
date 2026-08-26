@@ -49,6 +49,7 @@ Important interoperability finding: Armada is the client, not one fixed messagin
 9. Prefer recipient inbox relays from `kind:10050`, automatically using the configured relays when the single owner has no usable announcement.
 10. Survive relay failures and reconnect without duplicate agent turns.
 11. Provide a documented manual configuration flow, status/probe output, tests, and a release-ready package.
+12. Show an encrypted Armada typing indicator while an admitted owner's agent turn is active.
 
 ### Non-goals for the first release
 
@@ -58,7 +59,7 @@ Important interoperability finding: Armada is the client, not one fixed messagin
 - Lightning, LND, CLN, zaps, node lookup, or TunnelSats business logic.
 - A plugin-owned slash-command registry or native command catalog.
 - Porting `parseCommand`, `registerCommand`, `CommandContext`, or command handlers from `nostr-community-bot`.
-- Media/file DMs (`kind:15`), reactions, deletes, message edits, disappearing-message timers, typing indicators, or presence.
+- Media/file DMs (`kind:15`), reactions, deletes, message edits, disappearing-message timers, or presence.
 - NIP-04 legacy DMs or an automatic privacy downgrade.
 - NIP-46 remote signing or plugin-generated keys in v1. The operator supplies a dedicated `nsec` in a permission-restricted secret file, resolved through OpenClaw's secret-input system.
 - Contact/profile search or mutable display-name-based addressing. Stable pubkeys are the identity boundary.
@@ -217,7 +218,7 @@ Reuse patterns, not room behavior:
 - `resolveStableChannelMessageIngress`, `StableChannelIngressIdentityParams`, stable ingress identity, `dispatchInboundDirectDmWithRuntime`, and the bundled Nostr channel's dispatch structure;
 - secret-input ownership and manual channel-configuration conventions.
 
-Do not port Buzz room discovery, membership, directory groups, group allowlists, mentions, typing, presence, rich diffs, thread routing, room profiles, or kind-9 message construction.
+Do not port Buzz room discovery, membership, directory groups, group allowlists, mentions, room typing, presence, rich diffs, thread routing, room profiles, or kind-9 message construction. Slice 09 independently implements Armada's encrypted one-to-one DM typing extension.
 
 ### Package and local-install contract
 
@@ -498,7 +499,7 @@ Values may be tuned before release using loopback load tests, but implementation
 - `threads: false`;
 - text/Markdown capability only;
 - target prefix `nostr`;
-- no groups, directory groups, media, reactions, polls, native commands, or typing heartbeat;
+- no groups, directory groups, media, reactions, polls, native commands, or inbound/OpenClaw typing capability; Slice 09's outbound DM heartbeat is transport-owned;
 - reload prefix `channels.nostr`.
 
 Use the narrow public `openclaw/plugin-sdk/*` entrypoints. Do not import OpenClaw core files under `src/channels/**`.
@@ -560,6 +561,7 @@ Implementation work is divided into the following ordered, agent-ready files. Ea
 6. [`06-conversation-bound-replies-and-self-copy.md`](implementation-slices/06-conversation-bound-replies-and-self-copy.md) — keep replies bound to human-initiated conversations and add independent sender recovery copies.
 7. [`07-replay-resilience-and-resource-limits.md`](implementation-slices/07-replay-resilience-and-resource-limits.md) — harden duplicates, restarts, relay failures, shutdown, and overload behavior.
 8. [`08-setup-interoperability-and-release.md`](implementation-slices/08-setup-interoperability-and-release.md) — complete manual configuration guidance, probes, real Armada staging, packaging, and release evidence.
+9. [`09-armada-typing-notifications.md`](implementation-slices/09-armada-typing-notifications.md) — publish Armada-compatible encrypted ephemeral typing notifications only while an admitted owner turn is active.
 
 Slices are sequential: an agent starts only after every dependency's exit gate is green. For every slice, follow red-green-refactor: add a focused failing test, observe the intended failure, implement the minimum change, then refactor with focused and full suites green. The detailed coverage inventory below remains normative; the slice files assign those requirements to implementable work packets.
 
@@ -744,7 +746,7 @@ The README should include:
 - the human-initiated conversation flow and absence of unsolicited/scheduled sends;
 - status/probe and troubleshooting instructions;
 - the OpenClaw-host/model plaintext trust boundary;
-- unsupported media, reactions, groups, NIP-04, typing, and disappearing messages.
+- supported outbound Armada DM typing behavior and unsupported media, reactions, groups, NIP-04, presence, and disappearing messages.
 
 `SECURITY.md` should cover file-secret ownership/permissions and rotation, reporting, log redaction, relay SSRF/network policy, NIP-42 identity disclosure to authenticated relays, relay metadata limitations, replay/spam/resource controls, residual at-least-once crash semantics, model-provider exposure, why stale pairing approvals are ignored, and why a human identity's nsec must never be used as the bot key. Recommend least-privilege OpenClaw tools and sandboxing for every agent reachable through this channel.
 
@@ -760,6 +762,7 @@ The first release is complete when all of the following are true:
 - Sender authorization and session identity derive only from the verified inner sender.
 - The bot private key is resolved only from an OpenClaw `singleValue` file SecretRef containing one `nsec`; configuration, CLI arguments, environment variables, logs, status, and errors never contain it.
 - The agent's response is a fresh NIP-59 gift wrap that the current Armada client decrypts and displays.
+- During an admitted owner turn, Armada receives current encrypted ephemeral typing wraps; completion, failure, and cancellation stop refreshes without affecting the durable reply.
 - The bot cannot initiate a DM independently of an authenticated, admitted owner turn.
 - Recipient kind-10050 discovery, SSRF/DNS-rebinding defenses, authoritative valid-list routing, and automatic configured-relay owner fallback are covered by tests.
 - A sender self-copy is emitted without causing a recursive agent turn.
@@ -775,7 +778,7 @@ These require separate product decisions and must not silently expand v1:
 
 - NIP-15 file messages and encrypted media upload;
 - NIP-17 reactions and wrapped deletion requests;
-- Armada disappearing-message and typing extensions;
+- Armada disappearing-message extensions;
 - profile/name directory lookup;
 - NIP-46 remote signers or external HSM-backed identities;
 - multi-account OpenClaw configuration;
@@ -790,5 +793,6 @@ These require separate product decisions and must not silently expand v1:
 - **Usable owner-chat MVP:** Slice 04 is the first deployable product milestone. An allowlisted Armada user can send one encrypted DM and receive one encrypted OpenClaw AI response using kind-10050 routing.
 - **Feature-complete v1:** Slices 05–06 lock access to one owner, add automatic owner relay fallback, and publish sender recovery copies for human-initiated replies.
 - **Release candidate:** Slices 07–08 prove failure behavior, resource bounds, manual configuration, exact-host packaging, and interoperability with the current Armada client.
+- **Armada typing interoperability:** Slice 09 adds best-effort encrypted typing UX without widening the human-initiated conversation boundary.
 
 Prefer one pull request per slice. A pull request must link its slice file, satisfy that file's exit gate, and leave the full suite green. Do not combine Slice 04 with later policy or recovery-copy work: keeping the first end-to-end path narrow makes sender identity, relay routing, and OpenClaw dispatch independently reviewable.

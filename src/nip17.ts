@@ -15,6 +15,8 @@ import { SECURITY_LIMITS, type SecurityLimits } from "./security-limits.js";
 const DIRECT_MESSAGE_KIND = 14;
 const SEAL_KIND = 13;
 const GIFT_WRAP_KIND = 1059;
+const ARMADA_TYPING_KIND = 23_311;
+const EPHEMERAL_GIFT_WRAP_KIND = 21_059;
 const DEFAULT_MAX_MESSAGE_AGE_SECONDS = 7 * 24 * 60 * 60;
 const DEFAULT_MAX_FUTURE_SKEW_SECONDS = 300;
 const HEX_32 = /^[0-9a-f]{64}$/u;
@@ -50,6 +52,11 @@ export class Nip17ProtocolError extends Error {
 
 export interface DirectMessageRumor extends UnsignedEvent {
   readonly kind: 14;
+  readonly id: string;
+}
+
+export interface ArmadaTypingRumor extends UnsignedEvent {
+  readonly kind: 23_311;
   readonly id: string;
 }
 
@@ -100,6 +107,15 @@ export interface CreateDirectMessageInput {
   readonly limits?: Partial<CryptoSecurityLimits>;
 }
 
+export interface CreateTypingIndicatorInput {
+  readonly senderSecretKey: Uint8Array;
+  readonly recipientPublicKey: string;
+  readonly now?: number;
+  /** Test-only deterministic entropy hook. Production callers must omit it. */
+  readonly entropy?: Nip17EntropySource;
+  readonly limits?: Partial<CryptoSecurityLimits>;
+}
+
 export interface GiftWrappedCopy {
   readonly seal: NostrEvent;
   readonly wrap: NostrEvent;
@@ -110,6 +126,10 @@ export interface CreatedDirectMessage {
   readonly rumor: DirectMessageRumor;
   readonly recipient: GiftWrappedCopy;
   readonly selfCopy: GiftWrappedCopy;
+}
+
+export interface CreatedTypingIndicator extends GiftWrappedCopy {
+  readonly rumor: ArmadaTypingRumor;
 }
 
 export type CryptoSecurityLimits = Pick<
@@ -164,6 +184,16 @@ export function createDirectMessage(
 ): CreatedDirectMessage {
   try {
     return createDirectMessageStrict(input);
+  } catch {
+    throw new Nip17ProtocolError();
+  }
+}
+
+export function createTypingIndicator(
+  input: CreateTypingIndicatorInput,
+): CreatedTypingIndicator {
+  try {
+    return createTypingIndicatorStrict(input);
   } catch {
     throw new Nip17ProtocolError();
   }
@@ -353,6 +383,85 @@ function createDirectMessageStrict(
     rumor: cloneRumor(rumor),
     recipient,
     selfCopy,
+  };
+}
+
+function createTypingIndicatorStrict(
+  input: CreateTypingIndicatorInput,
+): CreatedTypingIndicator {
+  const limits = resolveLimits(input.limits);
+  const now = resolveTimestamp(input.now);
+  const senderSecretKey = requireSecretKey(input.senderSecretKey);
+  const senderPublicKey = getPublicKey(senderSecretKey);
+  const recipientPublicKey = requirePublicKey(input.recipientPublicKey);
+  if (recipientPublicKey === senderPublicKey) fail();
+
+  const tags = requireTags([["p", recipientPublicKey]], limits);
+  const unsigned: UnsignedEvent = {
+    kind: ARMADA_TYPING_KIND,
+    content: "",
+    tags,
+    created_at: now,
+    pubkey: senderPublicKey,
+  };
+  const rumor: ArmadaTypingRumor = {
+    ...unsigned,
+    kind: 23_311,
+    id: getEventHash(unsigned),
+  };
+  const rumorPlaintext = JSON.stringify(rumor);
+  requireUtf8Size(rumorPlaintext, limits.nip44PlaintextBytes);
+
+  const entropy = input.entropy ?? DEFAULT_ENTROPY;
+  const sealContent = encryptLayer(
+    rumorPlaintext,
+    senderSecretKey,
+    recipientPublicKey,
+    entropy,
+    limits,
+  );
+  const seal = finalizeEvent(
+    carrierTemplate(
+      SEAL_KIND,
+      sealContent,
+      [],
+      now,
+      entropy,
+      limits.nip59TimestampWindowSeconds,
+    ),
+    senderSecretKey,
+  );
+  const plainSeal = toPlainSignedEvent(seal);
+  const sealPlaintext = JSON.stringify(plainSeal);
+  requireUtf8Size(sealPlaintext, limits.nip44PlaintextBytes);
+
+  const wrapperSecretKey = requireSecretKey(entropy.generateSecretKey());
+  const wrapContent = encryptLayer(
+    sealPlaintext,
+    wrapperSecretKey,
+    recipientPublicKey,
+    entropy,
+    limits,
+  );
+  const wrap = toPlainSignedEvent(
+    finalizeEvent(
+      {
+        kind: EPHEMERAL_GIFT_WRAP_KIND,
+        content: wrapContent,
+        tags: [["p", recipientPublicKey]],
+        created_at: now,
+      },
+      wrapperSecretKey,
+    ),
+  );
+  requireSerializedSize(wrap, limits.outerEventBytes);
+  requireUtf8Size(wrap.content, limits.ciphertextBytes);
+  if (wrap.pubkey === senderPublicKey) fail();
+
+  return {
+    rumor: { ...rumor, tags: rumor.tags.map((tag) => [...tag]) },
+    seal: plainSeal,
+    wrap,
   };
 }
 
