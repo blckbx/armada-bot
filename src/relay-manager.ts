@@ -31,6 +31,7 @@ export interface RelayManagerSnapshot {
   readonly activeInboundHandlers: number;
   readonly droppedInboundEvents: number;
   readonly rateLimitedInboundEvents: number;
+  readonly failedInboundEvents: number;
   readonly relays: RelaySessionSnapshot[];
   readonly lastError?: string | undefined;
 }
@@ -86,9 +87,11 @@ export class RelayManager {
   private activeInboundHandlers = 0;
   private droppedInboundEvents = 0;
   private rateLimitedInboundEvents = 0;
+  private failedInboundEvents = 0;
   private dedupeAvailable = true;
   private announcementVerified = false;
   private managerError: string | undefined;
+  private inboundError: string | undefined;
   private startPromise: Promise<void> | undefined;
   private stopPromise: Promise<void> | undefined;
   private currentSnapshot: RelayManagerSnapshot;
@@ -122,6 +125,7 @@ export class RelayManager {
       activeInboundHandlers: 0,
       droppedInboundEvents: 0,
       rateLimitedInboundEvents: 0,
+      failedInboundEvents: 0,
       relays: [],
     };
   }
@@ -140,6 +144,7 @@ export class RelayManager {
     this.active = true;
     const generation = ++this.generation;
     this.managerError = undefined;
+    this.inboundError = undefined;
     this.dedupeAvailable = true;
     this.announcementVerified = !this.options.publishInbox;
     this.refreshSnapshot("starting");
@@ -419,11 +424,19 @@ export class RelayManager {
   private runInbound(event: NostrEvent, generation: number): void {
     this.activeInboundHandlers += 1;
     this.refreshSnapshot();
+    let failed = false;
     const task = Promise.resolve(this.options.onEvent(cloneEvent(event)))
-      .catch(() => undefined)
+      .catch(() => {
+        if (!this.isCurrent(generation)) return;
+        failed = true;
+        this.failedInboundEvents += 1;
+        this.inboundError = "Inbound message processing failed.";
+        this.refreshSnapshot("degraded");
+      })
       .then(() => {
         this.activeInboundHandlers -= 1;
         if (this.isCurrent(generation)) {
+          if (!failed) this.inboundError = undefined;
           const next = this.inboundQueue.shift();
           if (next !== undefined) this.runInbound(next, generation);
           else this.refreshSnapshot();
@@ -446,6 +459,7 @@ export class RelayManager {
     this.activeInboundHandlers = 0;
     this.announcementVerified = false;
     this.managerError = undefined;
+    this.inboundError = undefined;
     this.dedupeAvailable = true;
     this.refreshSnapshot("stopped");
   }
@@ -474,7 +488,7 @@ export class RelayManager {
     const health =
       forcedHealth ??
       (ready
-        ? partiallyAvailable
+        ? partiallyAvailable || this.inboundError !== undefined
           ? "degraded"
           : "healthy"
         : this.active
@@ -494,10 +508,11 @@ export class RelayManager {
       activeInboundHandlers: this.activeInboundHandlers,
       droppedInboundEvents: this.droppedInboundEvents,
       rateLimitedInboundEvents: this.rateLimitedInboundEvents,
+      failedInboundEvents: this.failedInboundEvents,
       relays,
-      ...(this.managerError === undefined
+      ...(this.managerError === undefined && this.inboundError === undefined
         ? {}
-        : { lastError: this.managerError }),
+        : { lastError: this.managerError ?? this.inboundError }),
     };
     this.currentSnapshot = next;
     try {

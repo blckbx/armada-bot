@@ -28,6 +28,7 @@ const INITIAL_SNAPSHOT: RelayManagerSnapshot = {
   activeInboundHandlers: 0,
   droppedInboundEvents: 0,
   rateLimitedInboundEvents: 0,
+  failedInboundEvents: 0,
   relays: [],
 };
 

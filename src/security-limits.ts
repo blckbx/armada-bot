@@ -45,7 +45,9 @@ export const SECURITY_LIMITS: Readonly<SecurityLimits> = Object.freeze({
   recipientDeliveryRelays: 3,
   rawIngressEnvelopeBytes: 140_000,
   pendingInboundEvents: 256,
-  concurrentInboundHandlers: 8,
+  // One configured owner maps to one OpenClaw direct-message session. Keep its
+  // turns ordered instead of occupying the pool with concurrent session work.
+  concurrentInboundHandlers: 1,
   authenticatedSenderRatePerMinute: 10,
   authenticatedSenderBurst: 5,
   authenticatedGlobalRatePerMinute: 60,
