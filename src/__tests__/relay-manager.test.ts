@@ -254,6 +254,74 @@ describe("relay manager", () => {
     });
   });
 
+  it("serializes the default single-owner inbound queue", async () => {
+    const relay = new LoopbackRelay();
+    relays.push(relay);
+    await relay.start();
+    let releaseFirst: (() => void) | undefined;
+    let calls = 0;
+    const manager = createManager([relay.url], {
+      onEvent: async () => {
+        calls += 1;
+        if (calls === 1) {
+          await new Promise<void>((resolve) => {
+            releaseFirst = resolve;
+          });
+        }
+      },
+    });
+    await manager.start();
+    await eventually(() => manager.snapshot().ready);
+
+    relay.sendEvent(createArmadaFixture());
+    relay.sendEvent(
+      createArmadaFixture({
+        wrapTemplate: { created_at: FIXTURE_NOW - 2_401 },
+      }),
+    );
+    relay.sendEvent(
+      createArmadaFixture({
+        wrapTemplate: { created_at: FIXTURE_NOW - 2_402 },
+      }),
+    );
+    await eventually(() => manager.snapshot().queuedInboundEvents === 2);
+
+    expect(manager.snapshot()).toMatchObject({
+      activeInboundHandlers: 1,
+      queuedInboundEvents: 2,
+    });
+
+    releaseFirst?.();
+    await eventually(() => calls === 3);
+    await eventually(() => manager.snapshot().activeInboundHandlers === 0);
+    await manager.stop();
+  });
+
+  it("reports inbound handler failures without sensitive error details", async () => {
+    const relay = new LoopbackRelay();
+    relays.push(relay);
+    await relay.start();
+    const manager = createManager([relay.url], {
+      onEvent: () => Promise.reject(new Error("sensitive handler details")),
+    });
+    await manager.start();
+    await eventually(() => manager.snapshot().ready);
+
+    relay.sendEvent(createArmadaFixture());
+    await eventually(() => manager.snapshot().failedInboundEvents === 1);
+
+    expect(manager.snapshot()).toMatchObject({
+      ready: true,
+      failedInboundEvents: 1,
+      health: "degraded",
+      lastError: "Inbound message processing failed.",
+    });
+    expect(JSON.stringify(manager.snapshot())).not.toContain(
+      "sensitive handler details",
+    );
+    await manager.stop();
+  });
+
   it("surfaces authenticated rate limiting without sensitive details", async () => {
     const relay = new LoopbackRelay();
     relays.push(relay);

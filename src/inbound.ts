@@ -163,7 +163,9 @@ export function createInboundProcessor(
           return { handled: false };
         }
         if (!rateLimiter.consume(senderPublicKey)) {
-          claim.release();
+          // This authenticated logical message was intentionally consumed.
+          // Committing prevents relay copies from retrying the same burst.
+          await claim.commit();
           return { handled: false, rateLimited: true };
         }
 

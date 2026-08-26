@@ -160,7 +160,7 @@ NIP-17 protects transport content from relays and passive observers. Plaintext n
 
 ## Troubleshooting
 
-Run `openclaw channels status --probe` after every configuration or key change. The probe exposes only public and aggregate state: configured/connected inbox counts, per-relay connection/AUTH/subscription state, verified inbox announcement, durable dedupe availability, queue drops, authenticated rate-limit counts, readiness, and sanitized error categories.
+Run `openclaw channels status --probe` after every configuration or key change. The probe exposes only public and aggregate state: configured/connected inbox counts, per-relay connection/AUTH/subscription state, verified inbox announcement, durable dedupe availability, queue drops, authenticated rate-limit and inbound-failure counts, readiness, and sanitized error categories.
 
 - `Armada DM configuration is invalid.`: verify the exact provider, SecretRef, one-owner allowlist, relay URLs, and time bounds shown above.
 - `Nostr bot identity is unavailable or invalid.`: run `openclaw secrets audit`, confirm the provider is `singleValue`, reload secrets, and restart. Never paste the `nsec` into channel configuration or logs.

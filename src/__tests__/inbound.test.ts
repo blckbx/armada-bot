@@ -518,6 +518,7 @@ describe("allowlisted inbound AI round trip", () => {
   it("rate-limits authenticated owner bursts and refills deterministically", async () => {
     let nowMilliseconds = FIXTURE_NOW * 1_000;
     const dispatch = vi.fn(() => Promise.resolve({} as never));
+    const gate = replayGate();
     const processor = createInboundProcessor({
       cfg: {},
       runtime: {} as never,
@@ -529,7 +530,7 @@ describe("allowlisted inbound AI round trip", () => {
         maxFutureSkewSeconds: 300,
       },
       identity: { secretKey: BOT_SECRET_KEY, publicKey: BOT_PUBLIC_KEY },
-      replayGate: replayGate(),
+      replayGate: gate,
       resolveRecipientRelays: vi.fn(),
       publishRecipient: vi.fn(),
       publishSelfCopy: vi.fn(),
@@ -560,6 +561,8 @@ describe("allowlisted inbound AI round trip", () => {
       handled: true,
     });
     expect(dispatch).toHaveBeenCalledTimes(6);
+    expect(gate.commits).toBe(7);
+    expect(gate.releases).toBe(0);
   });
 
   it("suppresses a model response delivered after account cancellation", async () => {
