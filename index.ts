@@ -15,12 +15,16 @@ import { setArmadaRuntime } from "./src/runtime.js";
 
 export {
   createDirectMessage,
+  createTypingIndicator,
   Nip17ProtocolError,
   unwrapDirectMessage,
   validateGiftWrapCarrier,
   type AuthenticatedDirectMessage,
+  type ArmadaTypingRumor,
   type CreatedDirectMessage,
+  type CreatedTypingIndicator,
   type CreateDirectMessageInput,
+  type CreateTypingIndicatorInput,
   type CryptoSecurityLimits,
   type DirectMessageRumor,
   type GiftWrappedCopy,

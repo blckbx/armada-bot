@@ -3,6 +3,7 @@ import { getEventHash, verifyEvent, type NostrEvent } from "nostr-tools/pure";
 import { describe, expect, it } from "vitest";
 import {
   createDirectMessage,
+  createTypingIndicator,
   Nip17ProtocolError,
   unwrapDirectMessage,
 } from "../nip17.js";
@@ -390,6 +391,58 @@ describe("NIP-17 inbound cryptographic core", () => {
       for (const value of protectedValues)
         expect(rendered).not.toContain(value);
     }
+  });
+});
+
+describe("Armada ephemeral typing extension", () => {
+  it("creates a current kind-23311 rumor in a kind-21059 ephemeral wrap", () => {
+    const created = createTypingIndicator({
+      senderSecretKey: BOT_SECRET_KEY,
+      recipientPublicKey: SENDER_PUBLIC_KEY,
+      now: FIXTURE_NOW,
+      entropy: deterministicEntropy(),
+    });
+    const opened = independentlyOpenWrap(created.wrap, SENDER_SECRET_KEY);
+
+    expect(created.wrap).toMatchObject({
+      kind: 21_059,
+      tags: [["p", SENDER_PUBLIC_KEY]],
+      created_at: FIXTURE_NOW,
+    });
+    expect(created.wrap.pubkey).not.toBe(BOT_PUBLIC_KEY);
+    expect(verifyEvent(created.wrap)).toBe(true);
+    expect(created.seal.kind).toBe(13);
+    expect(created.seal.tags).toEqual([]);
+    expect(created.seal.pubkey).toBe(BOT_PUBLIC_KEY);
+    expect(created.seal.created_at).toBeLessThanOrEqual(FIXTURE_NOW);
+    expect(created.seal.created_at).toBeGreaterThanOrEqual(
+      FIXTURE_NOW - SECURITY_LIMITS.nip59TimestampWindowSeconds,
+    );
+    expect(verifyEvent(created.seal)).toBe(true);
+    expect(opened.rumor).toEqual(created.rumor);
+    expect(opened.rumor).toMatchObject({
+      kind: 23_311,
+      content: "",
+      tags: [["p", SENDER_PUBLIC_KEY]],
+      created_at: FIXTURE_NOW,
+      pubkey: BOT_PUBLIC_KEY,
+    });
+    expect(opened.rumor.id).toBe(getEventHash(opened.rumor));
+    expect(
+      [created.rumor, created.seal, created.wrap].some((event) =>
+        event.tags.some((tag) => tag[0] === "expiration"),
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects a typing indicator addressed to the sender", () => {
+    expectProtocolError(() =>
+      createTypingIndicator({
+        senderSecretKey: BOT_SECRET_KEY,
+        recipientPublicKey: BOT_PUBLIC_KEY,
+        now: FIXTURE_NOW,
+      }),
+    );
   });
 });
 

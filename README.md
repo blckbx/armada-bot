@@ -1,6 +1,6 @@
 # OpenClaw Armada DM
 
-`openclaw-armada-dm` is an OpenClaw channel plugin for private, one-to-one Armada conversations over standard Nostr NIP-17 direct messages. It provides a strict single-owner allowlist, file-backed bot identity, redundant relay inbox, authenticated AI replies, sender recovery copies, durable replay suppression, bounded resource use, and sanitized operational probes.
+`openclaw-armada-dm` is an OpenClaw channel plugin for private, one-to-one Armada conversations over standard Nostr NIP-17 direct messages. It provides a strict single-owner allowlist, file-backed bot identity, redundant relay inbox, authenticated AI replies, Armada-compatible encrypted typing notifications, sender recovery copies, durable replay suppression, bounded resource use, and sanitized operational probes.
 
 ## Build and local installation
 
@@ -146,6 +146,8 @@ NIP-42 AUTH events are connection-scoped, short-lived kind-22242 events and are 
 
 `createDirectMessage` returns one stable `logicalMessageId` (the rumor ID), a recipient gift wrap, and a separately sealed and wrapped sender self-copy. Each wrap uses a new ephemeral key. Automatic replies publish the recipient copy first, followed by a best-effort recovery copy to the bot's configured inbox. A recovery-copy failure does not overturn successful user delivery, and a recovered bot-authored copy is ignored before replay claiming or agent dispatch. All cryptographic failures use the single sanitized `Nip17ProtocolError` category.
 
+After an owner message passes authentication, authorization, replay claiming, and rate limiting, the plugin immediately publishes Armada's encrypted typing extension and refreshes it no more than once every four seconds while OpenClaw is generating the response. Each notification is an empty bot-authored kind-23311 rumor inside a fresh ephemeral kind-21059 NIP-59 wrap sent only to the owner's validated recipient relays. Typing is best-effort, has no sender recovery copy, and stops on completion, failure, or account cancellation; Armada removes a stale indicator locally after eight seconds.
+
 Inbound authorization uses only the authenticated inner rumor author. The account and inner rumor ID are claimed in OpenClaw's persistent dedupe store before dispatch, committed after a successful turn, and released after failure. Recipient delivery discovers the newest valid signed kind-10050 list, caches it for one hour, revalidates its URLs as untrusted destinations, and never unions valid recipient relays with configured defaults. When the sole owner has no usable kind-10050, automatic fallback sends the encrypted reply only through configured relays.
 
 ## Allowlisted round-trip recipe
@@ -175,4 +177,4 @@ Rotation creates a new Nostr bot identity; it is not an in-place credential refr
 
 ## Unsupported features
 
-The plugin supports direct text replies only. It does not implement groups, public notes, NIP-04, media/files, reactions, deletes, edits, typing indicators, presence, disappearing messages, scheduled sends, unsolicited bot-initiated DMs, or a native command registry.
+The plugin supports direct text replies plus outbound ephemeral Armada typing notifications for an admitted owner turn. It does not implement groups, public notes, NIP-04, media/files, reactions, deletes, edits, inbound typing, presence, disappearing messages, scheduled sends, unsolicited bot-initiated DMs, or a native command registry.

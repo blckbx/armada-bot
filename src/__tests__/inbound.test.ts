@@ -1,8 +1,8 @@
 import type { NostrEvent } from "nostr-tools/pure";
 import { createClaimableDedupe } from "openclaw/plugin-sdk/persistent-dedupe";
 import { describe, expect, it, vi } from "vitest";
-import { createInboundProcessor } from "../inbound.js";
-import { createDirectMessage } from "../nip17.js";
+import { createInboundProcessor, InboundDispatchError } from "../inbound.js";
+import { createDirectMessage, createTypingIndicator } from "../nip17.js";
 import {
   ClaimableReplayGate,
   type ReplayClaim,
@@ -54,6 +54,164 @@ function replayGate(): ReplayGate & {
 }
 
 describe("allowlisted inbound AI round trip", () => {
+  it("refreshes Armada typing while dispatch is pending and stops afterward", async () => {
+    vi.useFakeTimers();
+    try {
+      let finishDispatch: (() => void) | undefined;
+      const publishRecipient = vi.fn(() => Promise.resolve());
+      const dispatch = vi.fn(
+        () =>
+          new Promise<never>((resolve) => {
+            finishDispatch = resolve as () => void;
+          }),
+      );
+      const processor = createInboundProcessor({
+        cfg: {},
+        runtime: {} as never,
+        accountId: "default",
+        config: {
+          dmPolicy: "allowlist",
+          allowFrom: [SENDER_PUBLIC_KEY],
+          maxMessageAgeSeconds: 3_600,
+          maxFutureSkewSeconds: 300,
+        },
+        identity: { secretKey: BOT_SECRET_KEY, publicKey: BOT_PUBLIC_KEY },
+        replayGate: replayGate(),
+        resolveRecipientRelays: () =>
+          Promise.resolve(["wss://recipient.example/"]),
+        publishRecipient,
+        publishSelfCopy: vi.fn(),
+        resolveIngress: () => Promise.resolve(allowDecision()),
+        dispatch,
+        nowSeconds: () => FIXTURE_NOW,
+      });
+
+      const handling = processor.handle(createArmadaFixture());
+      await vi.waitFor(() =>
+        expect(publishRecipient).toHaveBeenCalledWith(
+          ["wss://recipient.example/"],
+          expect.objectContaining({ kind: 21_059 }),
+        ),
+      );
+      await vi.advanceTimersByTimeAsync(4_000);
+      expect(
+        publishRecipient.mock.calls.filter(
+          ([, event]) => event.kind === 21_059,
+        ),
+      ).toHaveLength(2);
+
+      finishDispatch?.();
+      await handling;
+      await vi.advanceTimersByTimeAsync(8_000);
+      expect(
+        publishRecipient.mock.calls.filter(
+          ([, event]) => event.kind === 21_059,
+        ),
+      ).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(["construction", "relay lookup", "publication"] as const)(
+    "keeps typing %s failures best-effort",
+    async (failurePoint) => {
+      let finishDispatch: (() => void) | undefined;
+      const resolveRecipientRelays = vi.fn(() =>
+        failurePoint === "relay lookup"
+          ? Promise.reject(new Error("sensitive typing relay lookup failure"))
+          : Promise.resolve(["wss://recipient.example/"]),
+      );
+      const createTyping = vi.fn(
+        (input: Parameters<typeof createTypingIndicator>[0]) => {
+          if (failurePoint === "construction")
+            throw new Error("sensitive typing construction failure");
+          return createTypingIndicator(input);
+        },
+      );
+      const publishRecipient = vi.fn(() =>
+        failurePoint === "publication"
+          ? Promise.reject(new Error("sensitive typing relay failure"))
+          : Promise.resolve(),
+      );
+      const processor = createInboundProcessor({
+        cfg: {},
+        runtime: {} as never,
+        accountId: "default",
+        config: {
+          dmPolicy: "allowlist",
+          allowFrom: [SENDER_PUBLIC_KEY],
+          maxMessageAgeSeconds: 3_600,
+          maxFutureSkewSeconds: 300,
+        },
+        identity: { secretKey: BOT_SECRET_KEY, publicKey: BOT_PUBLIC_KEY },
+        replayGate: replayGate(),
+        resolveRecipientRelays,
+        publishRecipient,
+        publishSelfCopy: vi.fn(),
+        resolveIngress: () => Promise.resolve(allowDecision()),
+        dispatch: () =>
+          new Promise<never>((resolve) => {
+            finishDispatch = resolve as () => void;
+          }),
+        createTyping,
+        nowSeconds: () => FIXTURE_NOW,
+      });
+
+      const handling = processor.handle(createArmadaFixture());
+      await vi.waitFor(() => {
+        if (failurePoint === "relay lookup")
+          expect(resolveRecipientRelays).toHaveBeenCalledOnce();
+        else if (failurePoint === "construction")
+          expect(createTyping).toHaveBeenCalledOnce();
+        else expect(publishRecipient).toHaveBeenCalledOnce();
+      });
+      finishDispatch?.();
+
+      await expect(handling).resolves.toMatchObject({ handled: true });
+    },
+  );
+
+  it("stops typing refreshes after dispatch failure", async () => {
+    vi.useFakeTimers();
+    try {
+      let failDispatch: ((error: Error) => void) | undefined;
+      const publishRecipient = vi.fn(() => Promise.resolve());
+      const processor = createInboundProcessor({
+        cfg: {},
+        runtime: {} as never,
+        accountId: "default",
+        config: {
+          dmPolicy: "allowlist",
+          allowFrom: [SENDER_PUBLIC_KEY],
+          maxMessageAgeSeconds: 3_600,
+          maxFutureSkewSeconds: 300,
+        },
+        identity: { secretKey: BOT_SECRET_KEY, publicKey: BOT_PUBLIC_KEY },
+        replayGate: replayGate(),
+        resolveRecipientRelays: () =>
+          Promise.resolve(["wss://recipient.example/"]),
+        publishRecipient,
+        publishSelfCopy: vi.fn(),
+        resolveIngress: () => Promise.resolve(allowDecision()),
+        dispatch: () =>
+          new Promise<never>((_resolve, reject) => {
+            failDispatch = reject;
+          }),
+        nowSeconds: () => FIXTURE_NOW,
+      });
+
+      const handling = processor.handle(createArmadaFixture());
+      await vi.waitFor(() => expect(publishRecipient).toHaveBeenCalledOnce());
+      failDispatch?.(new Error("sensitive dispatch failure"));
+      await expect(handling).rejects.toThrow(InboundDispatchError);
+      await vi.advanceTimersByTimeAsync(8_000);
+      expect(publishRecipient).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("routes only the authenticated inner sender and returns a decryptable native reply", async () => {
     const ingress = vi.fn(() => Promise.resolve(allowDecision()));
     const published: NostrEvent[] = [];
@@ -128,7 +286,7 @@ describe("allowlisted inbound AI round trip", () => {
       ["wss://recipient.example/"],
       expect.objectContaining({ kind: 1059 }),
     );
-    const publishedReply = published[0];
+    const publishedReply = published.find((event) => event.kind === 1_059);
     expect(publishedReply).toBeDefined();
     if (publishedReply === undefined) throw new Error("missing reply");
     const reply = independentlyOpenWrap(publishedReply, SENDER_SECRET_KEY);
@@ -352,7 +510,11 @@ describe("allowlisted inbound AI round trip", () => {
   });
 
   it("keeps peer delivery successful when recovery-copy publication fails", async () => {
-    const publishRecipient = vi.fn(() => Promise.resolve());
+    const publishRecipient = vi.fn((relayUrls: string[], event: NostrEvent) => {
+      void relayUrls;
+      void event;
+      return Promise.resolve();
+    });
     const publishSelfCopy = vi.fn(() =>
       Promise.reject(new Error("sensitive relay failure")),
     );
@@ -388,7 +550,9 @@ describe("allowlisted inbound AI round trip", () => {
       messageIds: [expect.any(String)],
       warnings: ["Sender recovery copy delivery failed."],
     });
-    expect(publishRecipient).toHaveBeenCalledOnce();
+    expect(
+      publishRecipient.mock.calls.filter(([, event]) => event.kind === 1059),
+    ).toHaveLength(1);
     expect(publishSelfCopy).toHaveBeenCalledOnce();
   });
 
@@ -515,6 +679,40 @@ describe("allowlisted inbound AI round trip", () => {
     expect(dispatch).toHaveBeenCalledOnce();
   });
 
+  it("publishes no typing event for a rate-limited owner turn", async () => {
+    const dispatch = vi.fn();
+    const publishRecipient = vi.fn();
+    const gate = replayGate();
+    const processor = createInboundProcessor({
+      cfg: {},
+      runtime: {} as never,
+      accountId: "default",
+      config: {
+        dmPolicy: "allowlist",
+        allowFrom: [SENDER_PUBLIC_KEY],
+        maxMessageAgeSeconds: 3_600,
+        maxFutureSkewSeconds: 300,
+      },
+      identity: { secretKey: BOT_SECRET_KEY, publicKey: BOT_PUBLIC_KEY },
+      replayGate: gate,
+      resolveRecipientRelays: vi.fn(),
+      publishRecipient,
+      publishSelfCopy: vi.fn(),
+      resolveIngress: () => Promise.resolve(allowDecision()),
+      dispatch,
+      rateLimiter: { consume: () => false },
+      nowSeconds: () => FIXTURE_NOW,
+    });
+
+    await expect(processor.handle(createArmadaFixture())).resolves.toEqual({
+      handled: false,
+      rateLimited: true,
+    });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(publishRecipient).not.toHaveBeenCalled();
+    expect(gate.commits).toBe(1);
+  });
+
   it("rate-limits authenticated owner bursts and refills deterministically", async () => {
     let nowMilliseconds = FIXTURE_NOW * 1_000;
     const dispatch = vi.fn(() => Promise.resolve({} as never));
@@ -568,7 +766,11 @@ describe("allowlisted inbound AI round trip", () => {
   it("suppresses a model response delivered after account cancellation", async () => {
     const abort = new AbortController();
     let finishModel: (() => void) | undefined;
-    const publishRecipient = vi.fn();
+    const publishRecipient = vi.fn((relayUrls: string[], event: NostrEvent) => {
+      void relayUrls;
+      void event;
+      return Promise.resolve();
+    });
     const gate = replayGate();
     const dispatch = vi.fn(async (params: never) => {
       await new Promise<void>((resolve) => {
@@ -606,7 +808,9 @@ describe("allowlisted inbound AI round trip", () => {
     finishModel?.();
 
     await expect(handling).resolves.toEqual({ handled: false });
-    expect(publishRecipient).not.toHaveBeenCalled();
+    expect(
+      publishRecipient.mock.calls.filter(([, event]) => event.kind === 1059),
+    ).toHaveLength(0);
     expect(gate.releases).toBe(1);
   });
 });
