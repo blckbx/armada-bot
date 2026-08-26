@@ -101,7 +101,7 @@ describe("allowlisted inbound AI round trip", () => {
         channelId: "nostr",
         accountId: "default",
         subject: { stableId: SENDER_PUBLIC_KEY },
-        conversation: { kind: "direct", id: `nostr:${SENDER_PUBLIC_KEY}` },
+        conversation: { kind: "direct", id: SENDER_PUBLIC_KEY },
         dmPolicy: "allowlist",
         allowFrom: [SENDER_PUBLIC_KEY],
         useDefaultPairingStore: false,
@@ -111,7 +111,7 @@ describe("allowlisted inbound AI round trip", () => {
       expect.objectContaining({
         channel: "nostr",
         accountId: "default",
-        peer: { kind: "direct", id: `nostr:${SENDER_PUBLIC_KEY}` },
+        peer: { kind: "direct", id: SENDER_PUBLIC_KEY },
         senderId: SENDER_PUBLIC_KEY,
         senderAddress: `nostr:${SENDER_PUBLIC_KEY}`,
         recipientAddress: `nostr:${BOT_PUBLIC_KEY}`,
@@ -229,6 +229,7 @@ describe("allowlisted inbound AI round trip", () => {
 
   it("uses the exact OpenClaw dispatcher for the configured owner session", async () => {
     const peers: string[] = [];
+    const dispatchConfigs: unknown[] = [];
     const recordInboundSession = vi.fn(() => Promise.resolve());
     const dispatchReplyWithBufferedBlockDispatcher = vi.fn(
       async (params: never) => {
@@ -246,7 +247,14 @@ describe("allowlisted inbound AI round trip", () => {
     const runtime = {
       channel: {
         routing: {
-          resolveAgentRoute: ({ peer }: { peer: { id: string } }) => {
+          resolveAgentRoute: ({
+            cfg,
+            peer,
+          }: {
+            cfg: unknown;
+            peer: { id: string };
+          }) => {
+            dispatchConfigs.push(cfg);
             peers.push(peer.id);
             return {
               agentId: "main",
@@ -268,8 +276,14 @@ describe("allowlisted inbound AI round trip", () => {
         },
       },
     } as never;
+    const cfg = {
+      messages: {
+        visibleReplies: "message_tool",
+        groupChat: { visibleReplies: "message_tool" },
+      },
+    } as const;
     const processor = createInboundProcessor({
-      cfg: {},
+      cfg,
       runtime,
       accountId: "default",
       config: {
@@ -288,7 +302,16 @@ describe("allowlisted inbound AI round trip", () => {
     });
     await processor.handle(createArmadaFixture());
 
-    expect(peers).toEqual([`nostr:${SENDER_PUBLIC_KEY}`]);
+    expect(peers).toEqual([SENDER_PUBLIC_KEY]);
+    expect(dispatchConfigs).toEqual([
+      {
+        messages: {
+          visibleReplies: "automatic",
+          groupChat: { visibleReplies: "message_tool" },
+        },
+      },
+    ]);
+    expect(cfg.messages.visibleReplies).toBe("message_tool");
     expect(recordInboundSession).toHaveBeenCalledOnce();
     expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledOnce();
   });
