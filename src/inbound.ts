@@ -4,7 +4,16 @@ import {
   resolveStableChannelMessageIngress,
   type ResolvedChannelMessageIngress,
 } from "openclaw/plugin-sdk/channel-ingress-runtime";
+import {
+  buildChannelInboundMediaPayload,
+  toInboundMediaFacts,
+} from "openclaw/plugin-sdk/channel-inbound";
 import type { NostrEvent } from "nostr-tools/pure";
+import {
+  materializeInboundMedia,
+  parseInboundMedia,
+  type MaterializedInboundMedia,
+} from "./media-ingress.js";
 import {
   createDirectMessage,
   createTypingIndicator,
@@ -13,6 +22,7 @@ import {
   type CreatedTypingIndicator,
   type CreateDirectMessageInput,
   type CreateTypingIndicatorInput,
+  type DirectMessageRumor,
 } from "./nip17.js";
 import {
   createAuthenticatedIngressRateLimiter,
@@ -76,6 +86,10 @@ export interface InboundProcessorOptions {
   readonly createTyping?: (
     input: CreateTypingIndicatorInput,
   ) => CreatedTypingIndicator;
+  readonly prepareMedia?: (
+    rumor: DirectMessageRumor,
+    signal?: AbortSignal,
+  ) => Promise<MaterializedInboundMedia>;
   readonly nowSeconds?: () => number;
   readonly nowMilliseconds?: () => number;
   readonly rateLimiter?: AuthenticatedIngressRateLimiter;
@@ -100,6 +114,13 @@ export function createInboundProcessor(
   const dispatch = options.dispatch ?? dispatchInboundDirectDmWithRuntime;
   const createReply = options.createReply ?? createDirectMessage;
   const createTyping = options.createTyping ?? createTypingIndicator;
+  const prepareMedia =
+    options.prepareMedia ??
+    (async (rumor: DirectMessageRumor, signal?: AbortSignal) =>
+      materializeInboundMedia({
+        parsed: parseInboundMedia(rumor),
+        ...(signal === undefined ? {} : { signal }),
+      }));
   const nowSeconds =
     options.nowSeconds ?? (() => Math.floor(Date.now() / 1_000));
   const rateLimiter =
@@ -193,6 +214,14 @@ export function createInboundProcessor(
           signal,
         });
         try {
+          const preparedMedia = await prepareMedia(authenticated.rumor, signal);
+          if (isAborted(signal)) {
+            claim.release();
+            return { handled: false };
+          }
+          const mediaContext = buildChannelInboundMediaPayload(
+            toInboundMediaFacts(preparedMedia.media),
+          );
           await dispatch({
             cfg: withAutomaticVisibleReplies(options.cfg),
             runtime: options.runtime,
@@ -204,12 +233,17 @@ export function createInboundProcessor(
             senderAddress,
             recipientAddress: `nostr:${options.identity.publicKey}`,
             conversationLabel: senderPublicKey,
-            rawBody: authenticated.content,
+            rawBody: preparedMedia.body,
+            bodyForAgent: preparedMedia.body,
+            commandBody: preparedMedia.body,
             messageId: authenticated.rumorId,
             timestamp: authenticated.createdAt * 1_000,
             ...(ingress.commandAccess.requested
               ? { commandAuthorized: ingress.commandAccess.authorized }
               : {}),
+            ...(preparedMedia.media.length === 0
+              ? {}
+              : { extraContext: mediaContext }),
             deliver: async (payload) => {
               if (isAborted(signal)) return;
               const text = formatOutboundText(

@@ -42,6 +42,24 @@ const UTF8 = new TextEncoder();
 const CHARACTER_SEGMENTER = new Intl.Segmenter(undefined, {
   granularity: "grapheme",
 });
+const SUPPORTED_FILE_MESSAGE_TAGS = new Set([
+  "subject",
+  "file-type",
+  "m",
+  "encryption-algorithm",
+  "decryption-key",
+  "decryption-nonce",
+  "x",
+  "ox",
+  "size",
+  "dim",
+  "thumbhash",
+  "blurhash",
+  "thumb",
+  "image",
+  "fallback",
+  "name",
+]);
 
 export class Nip17ProtocolError extends Error {
   constructor() {
@@ -51,7 +69,7 @@ export class Nip17ProtocolError extends Error {
 }
 
 export interface DirectMessageRumor extends UnsignedEvent {
-  readonly kind: 14;
+  readonly kind: 14 | 15;
   readonly id: string;
 }
 
@@ -62,6 +80,7 @@ export interface ArmadaTypingRumor extends UnsignedEvent {
 
 export interface AuthenticatedDirectMessage {
   readonly direction: "incoming" | "self-copy";
+  readonly kind: 14 | 15;
   readonly rumorId: string;
   readonly senderPublicKey: string;
   readonly recipientPublicKey: string;
@@ -264,7 +283,7 @@ function unwrapDirectMessageStrict(
     rumorRecipient === null ||
     (direction === "incoming" && rumorRecipient !== recipientPublicKey) ||
     (direction === "self-copy" && rumorRecipient === recipientPublicKey) ||
-    !hasOnlySupportedRumorTags(rumor.tags) ||
+    !hasOnlySupportedRumorTags(rumor.kind, rumor.tags) ||
     rumor.id !== getEventHash(rumor) ||
     rumor.created_at < now - maxMessageAgeSeconds ||
     rumor.created_at > now + maxFutureSkewSeconds
@@ -275,6 +294,7 @@ function unwrapDirectMessageStrict(
   const replyToEventId = rumor.tags.find((tag) => tag[0] === "e")?.[1];
   return {
     direction,
+    kind: rumor.kind,
     rumorId: rumor.id,
     senderPublicKey: rumor.pubkey,
     recipientPublicKey: rumorRecipient,
@@ -614,7 +634,7 @@ function parseRumor(
     !isRecord(value) ||
     Object.hasOwn(value, "sig") ||
     !hasOnlyKeys(value, RUMOR_KEYS) ||
-    value["kind"] !== DIRECT_MESSAGE_KIND ||
+    (value["kind"] !== DIRECT_MESSAGE_KIND && value["kind"] !== 15) ||
     !Number.isSafeInteger(value["created_at"]) ||
     (value["created_at"] as number) < 0 ||
     typeof value["content"] !== "string" ||
@@ -627,7 +647,7 @@ function parseRumor(
   }
   const tags = requireTags(value["tags"], limits);
   return {
-    kind: 14,
+    kind: value["kind"],
     tags,
     content: value["content"],
     created_at: value["created_at"] as number,
@@ -718,7 +738,7 @@ function hasOnlyHarmlessOuterTags(tags: string[][]): boolean {
   return kindHints <= 1;
 }
 
-function hasOnlySupportedRumorTags(tags: string[][]): boolean {
+function hasOnlySupportedRumorTags(kind: 14 | 15, tags: string[][]): boolean {
   let replies = 0;
   for (const tag of tags) {
     if (tag[0] === "p") continue;
@@ -731,9 +751,28 @@ function hasOnlySupportedRumorTags(tags: string[][]): boolean {
       replies += 1;
       continue;
     }
+    if (
+      kind === 14 &&
+      tag[0] === "q" &&
+      tag.length >= 2 &&
+      tag.length <= 4 &&
+      tag[1] !== undefined &&
+      tag[1] !== ""
+    ) {
+      continue;
+    }
+    if (kind === 14 && tag[0] === "imeta" && tag.length >= 2) continue;
+    if (kind === 15 && isSupportedFileMessageTag(tag)) continue;
     return false;
   }
   return replies <= 1;
+}
+
+function isSupportedFileMessageTag(tag: string[]): boolean {
+  const name = tag[0];
+  if (name === undefined || tag.length !== 2 || tag[1] === undefined)
+    return false;
+  return SUPPORTED_FILE_MESSAGE_TAGS.has(name);
 }
 
 function isCarrierTimestampValid(

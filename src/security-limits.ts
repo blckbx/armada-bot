@@ -18,6 +18,10 @@ export interface SecurityLimits {
   readonly authenticatedGlobalRatePerMinute: number;
   readonly authenticatedGlobalBurst: number;
   readonly rateLimitIdentities: number;
+  readonly inboundMediaAttachments: number;
+  readonly inboundMediaPlaintextBytes: number;
+  readonly inboundMediaTotalBytes: number;
+  readonly inboundMediaFetchTimeoutMs: number;
   readonly authChallengeBytes: number;
   readonly queryResultEvents: number;
   readonly connectTimeoutMs: number;
@@ -35,7 +39,9 @@ export const SECURITY_LIMITS: Readonly<SecurityLimits> = Object.freeze({
   outerEventBytes: 131_072,
   ciphertextBytes: 100_000,
   tags: 32,
-  tagElements: 8,
+  // Armada encrypted imeta entries carry URL, MIME, hashes, dimensions, and
+  // AES-GCM parameters in one bounded tag.
+  tagElements: 16,
   tagElementBytes: 1_024,
   outgoingTextCharacters: 16_000,
   nip44PlaintextBytes: 65_535,
@@ -53,6 +59,10 @@ export const SECURITY_LIMITS: Readonly<SecurityLimits> = Object.freeze({
   authenticatedGlobalRatePerMinute: 60,
   authenticatedGlobalBurst: 20,
   rateLimitIdentities: 1_024,
+  inboundMediaAttachments: 4,
+  inboundMediaPlaintextBytes: 20 * 1024 * 1024,
+  inboundMediaTotalBytes: 40 * 1024 * 1024,
+  inboundMediaFetchTimeoutMs: 20_000,
   authChallengeBytes: 4_096,
   queryResultEvents: 64,
   connectTimeoutMs: 5_000,

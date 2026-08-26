@@ -80,6 +80,9 @@ describe("package and manifest contracts", () => {
     "openclaw/plugin-sdk/json-schema-runtime",
     "openclaw/plugin-sdk/secret-input-runtime",
     "openclaw/plugin-sdk/status-helpers",
+    "openclaw/plugin-sdk/channel-inbound",
+    "openclaw/plugin-sdk/media-store",
+    "openclaw/plugin-sdk/web-media",
   ])("resolves pinned public SDK subpath %s", async (subpath) => {
     await expect(import(subpath)).resolves.toBeDefined();
   });

@@ -60,7 +60,7 @@ export const armadaDmChannelPlugin: ChannelPlugin<ResolvedArmadaAccount> = {
     reply: true,
     groupManagement: false,
     threads: false,
-    media: false,
+    media: true,
     nativeCommands: false,
   },
   reload: { configPrefixes: ["channels.nostr"] },

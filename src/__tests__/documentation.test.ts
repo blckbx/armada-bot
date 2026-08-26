@@ -32,4 +32,16 @@ describe("manual configuration documentation", () => {
     expect(security).toContain("at-least-once");
     expect(security).not.toContain("are added in Slice 7");
   });
+
+  it("documents encrypted inbound-media support and its trust boundary", async () => {
+    const readme = await readFile(new URL("README.md", root), "utf8");
+    const security = await readFile(new URL("SECURITY.md", root), "utf8");
+
+    expect(readme).toContain("kind-15 file rumors");
+    expect(readme).toContain("kind-14 `imeta`");
+    expect(readme).toContain("four attachments");
+    expect(readme).toContain("Bot-authored uploads");
+    expect(security).toContain("SSRF-guarded media loader");
+    expect(security).toContain("plaintext media");
+  });
 });

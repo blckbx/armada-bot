@@ -9,6 +9,7 @@ describe("plugin entries", () => {
 
     expect(runtime.default.id).toBe("armada-dm");
     expect(runtime.default.channelPlugin.id).toBe("nostr");
+    expect(runtime.default.channelPlugin.capabilities.media).toBe(true);
     expect("outbound" in runtime.default.channelPlugin).toBe(false);
     expect(setup.default.plugin.id).toBe("nostr");
     expect(timer).not.toHaveBeenCalled();
