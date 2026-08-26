@@ -128,7 +128,7 @@ export function createInboundProcessor(
 
       try {
         const senderPublicKey = authenticated.senderPublicKey;
-        const senderTarget = `nostr:${senderPublicKey}`;
+        const senderAddress = `nostr:${senderPublicKey}`;
         const command = shouldComputeCommand(
           options.runtime,
           authenticated.content,
@@ -149,7 +149,7 @@ export function createInboundProcessor(
           cfg: options.cfg,
           useDefaultPairingStore: false,
           subject: { stableId: senderPublicKey },
-          conversation: { kind: "direct", id: senderTarget },
+          conversation: { kind: "direct", id: senderPublicKey },
           dmPolicy: options.config.dmPolicy,
           allowFrom: options.config.allowFrom,
           command,
@@ -171,16 +171,16 @@ export function createInboundProcessor(
         const warnings = new Set<string>();
         const callbackState = { failed: false };
         await dispatch({
-          cfg: options.cfg,
+          cfg: withAutomaticVisibleReplies(options.cfg),
           runtime: options.runtime,
           channel: "nostr",
           channelLabel: "Armada DM",
           accountId: options.accountId,
-          peer: { kind: "direct", id: senderTarget },
+          peer: { kind: "direct", id: senderPublicKey },
           senderId: senderPublicKey,
-          senderAddress: senderTarget,
+          senderAddress,
           recipientAddress: `nostr:${options.identity.publicKey}`,
-          conversationLabel: senderTarget,
+          conversationLabel: senderPublicKey,
           rawBody: authenticated.content,
           messageId: authenticated.rumorId,
           timestamp: authenticated.createdAt * 1_000,
@@ -256,6 +256,18 @@ export function createInboundProcessor(
         if (error instanceof DirectMessageDeliveryError) throw error;
         throw new InboundDispatchError();
       }
+    },
+  };
+}
+
+function withAutomaticVisibleReplies(cfg: OpenClawConfig): OpenClawConfig {
+  // Armada owns delivery for this admitted inbound turn. Keep the reply on its
+  // conversation-bound NIP-17 callback instead of a shared message-tool path.
+  return {
+    ...cfg,
+    messages: {
+      ...cfg.messages,
+      visibleReplies: "automatic",
     },
   };
 }
