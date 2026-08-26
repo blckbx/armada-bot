@@ -23,7 +23,7 @@ This is an operator-facing slice. It does not yet exchange Nostr messages.
   - npm package `openclaw-armada-dm`;
   - plugin ID `armada-dm`;
   - channel ID `nostr`;
-  - minimum host/plugin API `2026.6.1`.
+  - exact plugin API baseline `2026.6.1` and minimum deployable host `2026.7.2-beta.6`.
 - Add import-safe built runtime and setup entry points.
 - Register the single-account text-DM channel using only public SDK exports present at the pinned OpenClaw commit.
 - Add strict runtime and manifest schemas for `channels.nostr`.
@@ -48,7 +48,7 @@ This is an operator-facing slice. It does not yet exchange Nostr messages.
 
 ## Implementation notes
 
-- The plugin must never open `/home/claw/.openclaw/secrets/nostr_nsec` directly. OpenClaw owns file access, permission checks, byte limits, newline removal, and SecretRef resolution.
+- The plugin must never open `/path/to/.openclaw/secrets/nostr_nsec` directly. OpenClaw owns file access, permission checks, byte limits, newline removal, and SecretRef resolution.
 - Do not add NIP-04, TunnelSats, groups, rooms, Lightning, commands, or model-provider code.
 - Do not use `postinstall`, `prepare`, TypeScript-at-runtime, or installation-time network access.
 - Stub transport lifecycle behind interfaces, but do not connect to relays in this slice.
@@ -62,9 +62,9 @@ This is an operator-facing slice. It does not yet exchange Nostr messages.
 
 ## Exit gate
 
-- Tests, lint, typecheck/build, package validation, `npm pack --dry-run`, and zero-vulnerability audit pass.
-- A clean npm-managed OpenClaw `2026.6.1` checkout discovers the plugin after `npm install /absolute/path/to/openclaw-armada-dm`.
-- A clean OpenClaw `2026.6.1` instance discovers the packed artifact through `openclaw plugins install npm-pack:/absolute/path/to/package.tgz`.
+- Tests, lint, typecheck/build, package validation, `npm pack --dry-run`, and the complete-tree/zero-runtime-vulnerability audit pass.
+- A clean npm-managed OpenClaw `2026.7.2-beta.6` or newer checkout discovers the plugin after `npm install /absolute/path/to/openclaw-armada-dm`.
+- A clean OpenClaw `2026.7.2-beta.6` or newer instance discovers the packed artifact through `openclaw plugins install npm-pack:/absolute/path/to/package.tgz`.
 - With the documented pre-provisioned SecretRef, status shows the correct bot `npub` and never the secret.
 - No relay connection or message processing exists yet.
 

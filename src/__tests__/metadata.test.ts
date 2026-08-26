@@ -28,12 +28,21 @@ describe("package and manifest contracts", () => {
     expect(metadata).not.toHaveProperty("runtimeExtensions");
     expect(metadata).not.toHaveProperty("runtimeSetupEntry");
     expect(metadata.compat).toEqual({ pluginApi: ">=2026.6.1" });
+    expect(metadata.install).toMatchObject({
+      minHostVersion: ">=2026.7.2-beta.6",
+    });
     expect(metadata.build).toEqual({
       openclawVersion: "2026.6.1",
       pluginSdkVersion: "2026.6.1",
     });
     expect((pkg.devDependencies as Record<string, string>).openclaw).toBe(
       "2026.6.1",
+    );
+    expect(
+      (pkg.devDependencies as Record<string, string>)["openclaw-host"],
+    ).toBe("npm:openclaw@2026.7.2-beta.6");
+    expect((pkg.peerDependencies as Record<string, string>).openclaw).toBe(
+      ">=2026.7.2-beta.6",
     );
     const scripts = pkg.scripts as Record<string, string>;
     expect(scripts["sdk:baseline"]).toBe(
@@ -48,6 +57,9 @@ describe("package and manifest contracts", () => {
     expect(scripts["smoke:install"]).toBe(
       "node scripts/smoke-install-paths.mjs",
     );
+    expect(scripts["test:coverage"]).toBe("vitest run --coverage");
+    expect(scripts.audit).toBe("node scripts/validate-host-security.mjs");
+    expect(scripts.ci).toContain("test:coverage");
     expect(scripts.ci).toContain("smoke:built");
     expect(scripts.ci).toContain("smoke:package");
     expect(scripts.ci).toContain("smoke:install");
@@ -81,9 +93,44 @@ describe("package and manifest contracts", () => {
     "openclaw/plugin-sdk/secret-input-runtime",
     "openclaw/plugin-sdk/status-helpers",
     "openclaw/plugin-sdk/channel-inbound",
+    "openclaw/plugin-sdk/channel-ingress-runtime",
     "openclaw/plugin-sdk/media-store",
+    "openclaw/plugin-sdk/persistent-dedupe",
+    "openclaw/plugin-sdk/state-paths",
     "openclaw/plugin-sdk/web-media",
   ])("resolves pinned public SDK subpath %s", async (subpath) => {
     await expect(import(subpath)).resolves.toBeDefined();
+  });
+
+  it("runs the complete release gate in repository CI", async () => {
+    const workflow = await readFile(
+      new URL(".github/workflows/ci.yml", root),
+      "utf8",
+    );
+
+    expect(workflow).toContain("npm ci");
+    expect(workflow).toContain("npm run ci");
+  });
+
+  it("fails CI when coverage falls below the repository baseline", async () => {
+    const config = await readFile(new URL("vitest.config.mjs", root), "utf8");
+
+    expect(config).toContain("thresholds");
+    expect(config).toContain("statements: 80");
+    expect(config).toContain("branches: 75");
+    expect(config).toContain("functions: 80");
+    expect(config).toContain("lines: 85");
+  });
+
+  it("audits the complete tree and isolates only the exact SDK baseline", async () => {
+    const validator = await readFile(
+      new URL("scripts/validate-host-security.mjs", root),
+      "utf8",
+    );
+
+    expect(validator).toContain('runAudit(["--json"])');
+    expect(validator).toContain('runAudit(["--omit=dev", "--json"])');
+    expect(validator).toContain("node_modules/openclaw/node_modules/");
+    expect(validator).toContain("node_modules/openclaw-host");
   });
 });

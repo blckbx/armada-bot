@@ -87,4 +87,36 @@ describe("relay URL and network policy", () => {
       }),
     ).rejects.toThrow(RelayUrlPolicyError);
   });
+
+  it.each([
+    "64:ff9b:1::a00:1",
+    "100::1",
+    "100:0:0:1::1",
+    "2001:2::1",
+    "2002:a00:1::",
+    "3fff::1",
+    "5f00::1",
+  ])("rejects non-global special-use IPv6 destination %s", async (address) => {
+    await expect(
+      validateRelayUrl({
+        url: "wss://relay.example/",
+        source: "recipient",
+        allowPrivateRelays: false,
+        lookup: () => Promise.resolve([{ address, family: 6 }]),
+      }),
+    ).rejects.toThrow(RelayUrlPolicyError);
+  });
+
+  it("accepts ordinary global IPv6 and public well-known NAT64", async () => {
+    for (const address of ["2606:4700:4700::1111", "64:ff9b::808:808"]) {
+      await expect(
+        validateRelayUrl({
+          url: "wss://relay.example/",
+          source: "recipient",
+          allowPrivateRelays: false,
+          lookup: () => Promise.resolve([{ address, family: 6 }]),
+        }),
+      ).resolves.toMatchObject({ address, family: 6 });
+    }
+  });
 });

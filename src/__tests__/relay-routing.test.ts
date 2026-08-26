@@ -108,4 +108,31 @@ describe("recipient relay routing", () => {
       "wss://fallback.example/",
     ]);
   });
+
+  it("never resurrects an older announcement when the newest list is unusable", async () => {
+    const router = new RecipientRelayRouter({
+      discoveryRelays: ["wss://discovery.example/"],
+      fallbackRelays: ["wss://fallback.example/"],
+      allowFallbackDelivery: true,
+      maxFutureSkewSeconds: 300,
+      query: () =>
+        Promise.resolve([
+          announcement(FIXTURE_NOW - 10, ["wss://retired.example"]),
+          announcement(FIXTURE_NOW, ["wss://private.example"]),
+        ]),
+      lookup: (hostname) =>
+        Promise.resolve([
+          {
+            address:
+              hostname === "private.example" ? "10.0.0.1" : "93.184.216.34",
+            family: 4,
+          },
+        ]),
+      nowSeconds: () => FIXTURE_NOW,
+    });
+
+    await expect(router.resolve(SENDER_PUBLIC_KEY)).resolves.toEqual([
+      "wss://fallback.example/",
+    ]);
+  });
 });

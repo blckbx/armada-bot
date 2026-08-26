@@ -8,7 +8,10 @@ const SUBPATHS = [
   "openclaw/plugin-sdk/secret-input-runtime",
   "openclaw/plugin-sdk/status-helpers",
   "openclaw/plugin-sdk/channel-inbound",
+  "openclaw/plugin-sdk/channel-ingress-runtime",
   "openclaw/plugin-sdk/media-store",
+  "openclaw/plugin-sdk/persistent-dedupe",
+  "openclaw/plugin-sdk/state-paths",
   "openclaw/plugin-sdk/web-media",
 ];
 

@@ -21,9 +21,21 @@ describe("Armada DM configuration", () => {
     ]);
     expect(parsed.provider).toEqual({
       source: "file",
-      path: "/home/claw/.openclaw/secrets/nostr_nsec",
+      path: "/path/to/.openclaw/secrets/nostr_nsec",
       mode: "singleValue",
     });
+  });
+
+  it("accepts an operator-selected absolute secret provider path", () => {
+    const raw = validConfig();
+    const providers = (raw.secrets as Record<string, Record<string, unknown>>)
+      .providers;
+    (providers.nostr as Record<string, unknown>).path =
+      "/srv/openclaw/secrets/armada_nsec";
+
+    expect(parseArmadaConfig(raw).provider.path).toBe(
+      "/srv/openclaw/secrets/armada_nsec",
+    );
   });
 
   it("defaults to automatic configured-relay fallback", () => {
@@ -68,6 +80,17 @@ describe("Armada DM configuration", () => {
           source: "env",
           allowlist: ["NSEC"],
         }),
+    ],
+    [
+      "relative provider path",
+      (cfg: Record<string, unknown>) => {
+        (
+          (cfg.secrets as Record<string, unknown>).providers as Record<
+            string,
+            Record<string, unknown>
+          >
+        ).nostr.path = "relative/nostr_nsec";
+      },
     ],
     [
       "wrong secret provider",

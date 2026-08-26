@@ -1,11 +1,11 @@
 import type { OpenClawConfig, PluginRuntime } from "openclaw/plugin-sdk/core";
-import { dispatchInboundDirectDmWithRuntime } from "openclaw/plugin-sdk/direct-dm";
 import {
   resolveStableChannelMessageIngress,
   type ResolvedChannelMessageIngress,
 } from "openclaw/plugin-sdk/channel-ingress-runtime";
 import {
   buildChannelInboundMediaPayload,
+  dispatchInboundDirectDmWithRuntime,
   toInboundMediaFacts,
 } from "openclaw/plugin-sdk/channel-inbound";
 import type { NostrEvent } from "nostr-tools/pure";
