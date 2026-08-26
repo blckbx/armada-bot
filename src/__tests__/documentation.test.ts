@@ -19,6 +19,9 @@ describe("manual configuration documentation", () => {
     expect(readme).toContain('"publishInbox": true');
     expect(readme).toContain("## Troubleshooting");
     expect(readme).toContain("## Bot-key rotation");
+    expect(readme).toContain("/path/to/.openclaw/secrets/nostr_nsec");
+    expect(readme).not.toContain("/home/claw/.openclaw/secrets/nostr_nsec");
+    expect(slice).toContain("/path/to/.openclaw/secrets/nostr_nsec");
     expect(slice).toContain("no interactive setup wizard");
     expect(slice).not.toContain(
       "Implement `openclaw channels add --channel nostr`",

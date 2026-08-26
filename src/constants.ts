@@ -14,6 +14,4 @@ export const DEFAULT_DISCOVERY_RELAYS = [
   "wss://relay.dreamith.to/",
 ] as const;
 
-export const NOSTR_SECRET_PROVIDER_PATH =
-  "/home/claw/.openclaw/secrets/nostr_nsec";
 export const MAX_RESOLVED_NSEC_BYTES = 256;

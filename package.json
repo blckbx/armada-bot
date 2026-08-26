@@ -16,17 +16,18 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
-    "format": "prettier --write AGENTS.md README.md SECURITY.md package.json openclaw.plugin.json tsconfig.json tsconfig.lint.json eslint.config.js index.ts setup-entry.ts scripts src docs",
-    "format:check": "prettier --check AGENTS.md README.md SECURITY.md package.json openclaw.plugin.json tsconfig.json tsconfig.lint.json eslint.config.js index.ts setup-entry.ts scripts src docs",
+    "format": "prettier --write AGENTS.md README.md SECURITY.md package.json openclaw.plugin.json tsconfig.json tsconfig.lint.json eslint.config.js vitest.config.mjs index.ts setup-entry.ts .github scripts src docs",
+    "format:check": "prettier --check AGENTS.md README.md SECURITY.md package.json openclaw.plugin.json tsconfig.json tsconfig.lint.json eslint.config.js vitest.config.mjs index.ts setup-entry.ts .github scripts src docs",
     "package:validate": "npm run build && node scripts/validate-package.mjs",
     "package:dry-run": "npm --cache /tmp/armada-bot-npm-cache pack --dry-run --json",
     "sdk:baseline": "node scripts/validate-sdk-imports.mjs",
     "smoke:built": "node scripts/smoke-built-artifact.mjs",
     "smoke:package": "node scripts/smoke-packed-artifact.mjs",
     "smoke:install": "node scripts/smoke-install-paths.mjs",
-    "audit": "npm audit --omit=dev --audit-level=low",
-    "ci": "npm test && npm run lint && npm run typecheck && npm run format:check && npm run package:validate && npm run sdk:baseline && npm run smoke:built && npm run smoke:package && npm run smoke:install && npm run package:dry-run && npm run audit"
+    "audit": "node scripts/validate-host-security.mjs",
+    "ci": "npm run test:coverage && npm run lint && npm run typecheck && npm run format:check && npm run package:validate && npm run sdk:baseline && npm run smoke:built && npm run smoke:package && npm run smoke:install && npm run package:dry-run && npm run audit"
   },
   "dependencies": {
     "nostr-tools": "2.25.0",
@@ -34,21 +35,23 @@
     "zod": "4.4.3"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.6.1"
+    "openclaw": ">=2026.7.2-beta.6"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "26.3.0",
     "@types/ws": "8.18.1",
+    "@vitest/coverage-v8": "4.1.11",
     "eslint": "10.9.1",
     "openclaw": "2026.6.1",
+    "openclaw-host": "npm:openclaw@2026.7.2-beta.6",
     "prettier": "3.9.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.68.0",
     "vitest": "4.1.11"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.22.3 <23 || >=24.15.0 <25 || >=25.9.0"
   },
   "license": "MIT",
   "openclaw": {
@@ -69,7 +72,7 @@
     "install": {
       "npmSpec": "openclaw-armada-dm",
       "defaultChoice": "npm",
-      "minHostVersion": ">=2026.6.1"
+      "minHostVersion": ">=2026.7.2-beta.6"
     },
     "compat": {
       "pluginApi": ">=2026.6.1"

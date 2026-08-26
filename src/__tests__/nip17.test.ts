@@ -67,6 +67,28 @@ describe("NIP-17 inbound cryptographic core", () => {
     expect(opened.senderPublicKey).not.toBe(wrap.pubkey);
   });
 
+  it("accepts standard NIP-17 recipient and reply relay hints", () => {
+    const parentId = "ab".repeat(32);
+    const rumor = createRumor({
+      tags: [
+        ["p", BOT_PUBLIC_KEY, "wss://inbox.example/"],
+        ["e", parentId, "wss://history.example/", "reply"],
+      ],
+    });
+    const wrap = createArmadaFixture({
+      rumorTransform: () => rumor,
+      wrapTemplate: {
+        tags: [["p", BOT_PUBLIC_KEY, "wss://inbox.example/"]],
+      },
+    });
+
+    expect(unwrap(wrap)).toMatchObject({
+      recipientPublicKey: BOT_PUBLIC_KEY,
+      replyToEventId: parentId,
+      rumor,
+    });
+  });
+
   it("authenticates a one-to-one kind-15 encrypted file rumor", () => {
     const unsigned = {
       kind: 15,

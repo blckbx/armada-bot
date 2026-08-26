@@ -77,8 +77,9 @@ export class RecipientRelayRouter {
       )
       .sort((left, right) => right.created_at - left.created_at);
 
-    for (const event of ordered) {
-      const relays = await this.validateEventRelays(event);
+    const newest = ordered[0];
+    if (newest !== undefined) {
+      const relays = await this.validateEventRelays(newest);
       if (relays.length > 0) {
         this.writeCache(recipientPublicKey, relays);
         return [...relays];

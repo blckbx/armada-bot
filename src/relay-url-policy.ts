@@ -158,18 +158,47 @@ function isPublicIpv6(address: string): boolean {
       `${String(bytes[12])}.${String(bytes[13])}.${String(bytes[14])}.${String(bytes[15])}`,
     );
   }
+  if (allZero || loopback) return false;
+
+  // RFC 6052's well-known NAT64 prefix is globally reachable, but its
+  // embedded IPv4 destination must still satisfy the IPv4 network policy.
+  if (
+    hasIpv6Prefix(bytes, [0x00, 0x64, 0xff, 0x9b, 0, 0, 0, 0, 0, 0, 0, 0], 96)
+  ) {
+    return isPublicIpv4(
+      `${String(bytes[12])}.${String(bytes[13])}.${String(bytes[14])}.${String(bytes[15])}`,
+    );
+  }
+
+  // Public relay destinations must be global unicast. This rejects ULA,
+  // link/site local, multicast, discard, local translation, dummy, and SRv6
+  // blocks before considering special allocations inside 2000::/3.
+  if (bytes[0] === undefined || (bytes[0] & 0xe0) !== 0x20) return false;
+
   return !(
-    allZero ||
-    loopback ||
-    (bytes[0] !== undefined && (bytes[0] & 0xfe) === 0xfc) ||
-    (bytes[0] === 0xfe &&
-      bytes[1] !== undefined &&
-      (bytes[1] & 0xc0) === 0x80) ||
-    bytes[0] === 0xff ||
-    (bytes[0] === 0x20 &&
-      bytes[1] === 0x01 &&
-      bytes[2] === 0x0d &&
-      bytes[3] === 0xb8)
+    hasIpv6Prefix(bytes, [0x20, 0x01, 0x00], 23) ||
+    hasIpv6Prefix(bytes, [0x20, 0x01, 0x0d, 0xb8], 32) ||
+    hasIpv6Prefix(bytes, [0x20, 0x02], 16) ||
+    hasIpv6Prefix(bytes, [0x3f, 0xff, 0x00], 20)
+  );
+}
+
+function hasIpv6Prefix(
+  address: number[],
+  prefix: number[],
+  prefixBits: number,
+): boolean {
+  const completeBytes = Math.floor(prefixBits / 8);
+  for (let index = 0; index < completeBytes; index += 1) {
+    if (address[index] !== prefix[index]) return false;
+  }
+  const remainingBits = prefixBits % 8;
+  if (remainingBits === 0) return true;
+  const mask = (0xff << (8 - remainingBits)) & 0xff;
+  return (
+    address[completeBytes] !== undefined &&
+    prefix[completeBytes] !== undefined &&
+    (address[completeBytes] & mask) === (prefix[completeBytes] & mask)
   );
 }
 

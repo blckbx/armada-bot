@@ -1,10 +1,7 @@
+import { isAbsolute } from "node:path";
 import * as nip19 from "nostr-tools/nip19";
 import { z } from "zod";
-import {
-  DEFAULT_DISCOVERY_RELAYS,
-  DEFAULT_INBOX_RELAYS,
-  NOSTR_SECRET_PROVIDER_PATH,
-} from "./constants.js";
+import { DEFAULT_DISCOVERY_RELAYS, DEFAULT_INBOX_RELAYS } from "./constants.js";
 import { SECURITY_LIMITS } from "./security-limits.js";
 
 const MIN_LOOKBACK_SECONDS = 3600;
@@ -103,7 +100,7 @@ export const SecretReferenceSchema = z
 export const NostrSecretProviderSchema = z
   .object({
     source: z.literal("file"),
-    path: z.literal(NOSTR_SECRET_PROVIDER_PATH),
+    path: z.string().min(1).max(4_096).refine(isAbsolute),
     mode: z.literal("singleValue"),
   })
   .strict();

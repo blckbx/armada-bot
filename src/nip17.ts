@@ -706,7 +706,8 @@ function hasOneRecipient(
   const recipient = recipients[0];
   return (
     recipients.length === 1 &&
-    recipient?.length === 2 &&
+    recipient !== undefined &&
+    isRecipientTag(recipient) &&
     recipient[1] === recipientPublicKey
   );
 }
@@ -716,7 +717,8 @@ function getSingleRecipient(tags: string[][]): string | null {
   const recipient = recipients[0];
   if (
     recipients.length !== 1 ||
-    recipient?.length !== 2 ||
+    recipient === undefined ||
+    !isRecipientTag(recipient) ||
     recipient[1] === undefined ||
     !HEX_32.test(recipient[1])
   ) {
@@ -729,7 +731,11 @@ function hasOnlyHarmlessOuterTags(tags: string[][]): boolean {
   let kindHints = 0;
   for (const tag of tags) {
     if (tag[0] === "p") continue;
-    if (tag[0] === "k" && tag.length === 2 && tag[1] === "14") {
+    if (
+      tag[0] === "k" &&
+      tag.length === 2 &&
+      (tag[1] === "14" || tag[1] === "15")
+    ) {
       kindHints += 1;
       continue;
     }
@@ -744,9 +750,11 @@ function hasOnlySupportedRumorTags(kind: 14 | 15, tags: string[][]): boolean {
     if (tag[0] === "p") continue;
     if (
       tag[0] === "e" &&
-      tag.length === 2 &&
+      tag.length >= 2 &&
+      tag.length <= 4 &&
       tag[1] !== undefined &&
-      HEX_32.test(tag[1])
+      HEX_32.test(tag[1]) &&
+      (tag.length < 4 || tag[3] === "reply")
     ) {
       replies += 1;
       continue;
@@ -766,6 +774,15 @@ function hasOnlySupportedRumorTags(kind: 14 | 15, tags: string[][]): boolean {
     return false;
   }
   return replies <= 1;
+}
+
+function isRecipientTag(tag: string[]): boolean {
+  return (
+    tag[0] === "p" &&
+    (tag.length === 2 || tag.length === 3) &&
+    tag[1] !== undefined &&
+    HEX_32.test(tag[1])
+  );
 }
 
 function isSupportedFileMessageTag(tag: string[]): boolean {

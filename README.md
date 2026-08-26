@@ -13,7 +13,7 @@ npm run build
 npm run package:validate
 ```
 
-From an npm-managed local OpenClaw `2026.6.1` checkout, install the built working directory:
+From an npm-managed local OpenClaw `2026.7.2-beta.6` or newer checkout, install the built working directory:
 
 ```bash
 npm install /absolute/path/to/openclaw-armada-dm
@@ -25,7 +25,7 @@ openclaw gateway restart
 openclaw channels status --probe
 ```
 
-OpenClaw `2026.6.1` does not automatically scan arbitrary packages placed in a checkout's root `node_modules`, so the explicit `plugins.load.paths` entry is required for this literal npm workflow. A source checkout managed as OpenClaw's pnpm monorepo is a different installation shape; use the managed `npm-pack:` workflow below instead.
+OpenClaw does not automatically scan arbitrary packages placed in a checkout's root `node_modules`, so the explicit `plugins.load.paths` entry is required for this literal npm workflow. A source checkout managed as OpenClaw's pnpm monorepo is a different installation shape; use the managed `npm-pack:` workflow below instead.
 
 For a standard OpenClaw installation, pack and install the managed artifact:
 
@@ -36,7 +36,7 @@ openclaw plugins enable armada-dm
 openclaw gateway restart
 ```
 
-The published `setup-entry.js` is an import-safe OpenClaw `2026.6.1` compatibility adapter. It does not run a wizard, prompt for values, edit configuration, read the secret file, publish events, or start relay connections.
+The published `setup-entry.js` uses only the OpenClaw `2026.6.1` public SDK compatibility baseline, while deployment requires patched OpenClaw `2026.7.2-beta.6` or newer. It does not run a wizard, prompt for values, edit configuration, read the secret file, publish events, or start relay connections.
 
 ## Migrating another Nostr channel
 
@@ -44,11 +44,12 @@ Only one enabled plugin may own channel ID `nostr`. Before enabling `armada-dm`,
 
 ## Bot identity prerequisite
 
-Use a dedicated bot key, never a human identity key. 
-For Armada client: 
-- Create a new account and setup the Bot profile (marking profile as bot is optional but helps identifying). 
+Use a dedicated bot key, never a human identity key.
+For Armada client:
+
+- Create a new account and setup the Bot profile (marking profile as bot is optional but helps identifying).
 - Save the nsec from settings to disk
-- From the user profile create a DM chat with the Bot
+- From user profile: create a DM chat with the Bot
 - From Bot profile: accept the DM chat
 
 Provision the single-value secret file before enabling the channel in OpenClaw:

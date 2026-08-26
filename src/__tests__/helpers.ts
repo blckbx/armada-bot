@@ -16,7 +16,7 @@ export function validConfig(): Record<string, unknown> {
       providers: {
         nostr: {
           source: "file",
-          path: "/home/claw/.openclaw/secrets/nostr_nsec",
+          path: "/path/to/.openclaw/secrets/nostr_nsec",
           mode: "singleValue",
         },
       },
