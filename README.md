@@ -44,7 +44,14 @@ Only one enabled plugin may own channel ID `nostr`. Before enabling `armada-dm`,
 
 ## Bot identity prerequisite
 
-Use a dedicated bot key, never a human identity key. Provision the single-value secret file before enabling the channel:
+Use a dedicated bot key, never a human identity key. 
+For Armada client: 
+- Create a new account and setup the Bot profile (marking profile as bot is optional but helps identifying). 
+- Save the nsec from settings to disk
+- From the user profile create a DM chat with the Bot
+- From Bot profile: accept the DM chat
+
+Provision the single-value secret file before enabling the channel in OpenClaw:
 
 ```bash
 install -d -m 700 /path/to/.openclaw/secrets
