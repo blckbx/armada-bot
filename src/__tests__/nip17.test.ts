@@ -55,6 +55,7 @@ describe("NIP-17 inbound cryptographic core", () => {
 
     expect(opened).toEqual({
       direction: "incoming",
+      kind: 14,
       rumorId: createRumor().id,
       senderPublicKey: SENDER_PUBLIC_KEY,
       recipientPublicKey: BOT_PUBLIC_KEY,
@@ -64,6 +65,58 @@ describe("NIP-17 inbound cryptographic core", () => {
       rumor: createRumor(),
     });
     expect(opened.senderPublicKey).not.toBe(wrap.pubkey);
+  });
+
+  it("authenticates a one-to-one kind-15 encrypted file rumor", () => {
+    const unsigned = {
+      kind: 15,
+      content: "https://blossom.example/file.bin",
+      tags: [
+        ["p", BOT_PUBLIC_KEY],
+        ["file-type", "image/png"],
+        ["encryption-algorithm", "aes-gcm"],
+        ["decryption-key", "11".repeat(32)],
+        ["decryption-nonce", "22".repeat(16)],
+        ["x", "33".repeat(32)],
+      ],
+      created_at: FIXTURE_NOW - 60,
+      pubkey: SENDER_PUBLIC_KEY,
+    };
+    const rumor = { ...unsigned, id: getEventHash(unsigned) };
+
+    const opened = unwrap(createArmadaFixture({ rumorTransform: () => rumor }));
+
+    expect(opened.rumor).toEqual(rumor);
+    expect(opened.kind).toBe(15);
+    expect(opened.content).toBe("https://blossom.example/file.bin");
+    expect(opened.senderPublicKey).toBe(SENDER_PUBLIC_KEY);
+  });
+
+  it("authenticates Armada kind-14 encrypted imeta attachment tags", () => {
+    const unsigned = {
+      kind: 14,
+      content: "please inspect\nhttps://blossom.example/file.bin",
+      tags: [
+        ["p", BOT_PUBLIC_KEY],
+        [
+          "imeta",
+          "url https://blossom.example/file.bin",
+          "m audio/ogg",
+          `x ${"33".repeat(32)}`,
+          "encryption-algorithm aes-gcm",
+          `decryption-key ${"11".repeat(32)}`,
+          `decryption-nonce ${"22".repeat(16)}`,
+        ],
+      ],
+      created_at: FIXTURE_NOW - 60,
+      pubkey: SENDER_PUBLIC_KEY,
+    };
+    const rumor = { ...unsigned, id: getEventHash(unsigned) };
+
+    const opened = unwrap(createArmadaFixture({ rumorTransform: () => rumor }));
+
+    expect(opened.rumor).toEqual(rumor);
+    expect(opened.kind).toBe(14);
   });
 
   it("classifies a valid bot-addressed sender recovery copy", () => {
@@ -274,7 +327,7 @@ describe("NIP-17 inbound cryptographic core", () => {
       "unsupported rumor kind",
       {
         rumorTransform: (rumor: ReturnType<typeof createRumor>) => {
-          const changed = { ...rumor, kind: 15 };
+          const changed = { ...rumor, kind: 16 };
           return { ...changed, id: getEventHash(changed) };
         },
       },

@@ -1,4 +1,4 @@
-import type { NostrEvent } from "nostr-tools/pure";
+import { getEventHash, type NostrEvent } from "nostr-tools/pure";
 import { createClaimableDedupe } from "openclaw/plugin-sdk/persistent-dedupe";
 import { describe, expect, it, vi } from "vitest";
 import { createInboundProcessor, InboundDispatchError } from "../inbound.js";
@@ -210,6 +210,108 @@ describe("allowlisted inbound AI round trip", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("passes managed Armada media paths into the OpenClaw agent turn", async () => {
+    const published: NostrEvent[] = [];
+    const prepareMedia = vi.fn(() =>
+      Promise.resolve({
+        body: "please analyze\n[Attachment: image/png]",
+        media: [
+          {
+            path: "/managed/inbound/photo.png",
+            contentType: "image/png",
+          },
+        ],
+        unavailableAttachments: 0,
+      }),
+    );
+    const dispatch = vi.fn(async (params: never) => {
+      const input = params as {
+        rawBody: string;
+        bodyForAgent?: string;
+        extraContext?: Record<string, unknown>;
+        deliver: (payload: unknown) => Promise<void>;
+      };
+      expect(input.rawBody).toBe("please analyze\n[Attachment: image/png]");
+      expect(input.bodyForAgent).toBe(
+        "please analyze\n[Attachment: image/png]",
+      );
+      expect(input.extraContext).toMatchObject({
+        MediaPath: "/managed/inbound/photo.png",
+        MediaUrl: "/managed/inbound/photo.png",
+        MediaType: "image/png",
+        MediaPaths: ["/managed/inbound/photo.png"],
+        MediaUrls: ["/managed/inbound/photo.png"],
+        MediaTypes: ["image/png"],
+      });
+      await input.deliver({ text: "the image contains a lighthouse" });
+      return {} as never;
+    });
+    const processor = createInboundProcessor({
+      cfg: {},
+      runtime: {} as never,
+      accountId: "default",
+      config: {
+        dmPolicy: "allowlist",
+        allowFrom: [SENDER_PUBLIC_KEY],
+        maxMessageAgeSeconds: 3_600,
+        maxFutureSkewSeconds: 300,
+      },
+      identity: { secretKey: BOT_SECRET_KEY, publicKey: BOT_PUBLIC_KEY },
+      replayGate: replayGate(),
+      resolveRecipientRelays: () =>
+        Promise.resolve(["wss://recipient.example/"]),
+      publishRecipient: (_relays, event) => {
+        published.push(event);
+        return Promise.resolve();
+      },
+      publishSelfCopy: vi.fn(() => Promise.resolve()),
+      resolveIngress: () => Promise.resolve(allowDecision()),
+      dispatch,
+      prepareMedia,
+      nowSeconds: () => FIXTURE_NOW,
+    });
+
+    const result = await processor.handle(createMediaFixture());
+
+    expect(result).toMatchObject({ handled: true });
+    expect(prepareMedia).toHaveBeenCalledOnce();
+    expect(dispatch).toHaveBeenCalledOnce();
+    expect(published.some((event) => event.kind === 1_059)).toBe(true);
+  });
+
+  it("does not prepare media before owner authorization", async () => {
+    const prepareMedia = vi.fn();
+    const processor = createInboundProcessor({
+      cfg: {},
+      runtime: {} as never,
+      accountId: "default",
+      config: {
+        dmPolicy: "allowlist",
+        allowFrom: [SENDER_PUBLIC_KEY],
+        maxMessageAgeSeconds: 3_600,
+        maxFutureSkewSeconds: 300,
+      },
+      identity: { secretKey: BOT_SECRET_KEY, publicKey: BOT_PUBLIC_KEY },
+      replayGate: replayGate(),
+      resolveRecipientRelays: vi.fn(),
+      publishRecipient: vi.fn(),
+      publishSelfCopy: vi.fn(),
+      resolveIngress: () =>
+        Promise.resolve({
+          senderAccess: { decision: "deny" },
+          commandAccess: { requested: false, authorized: false },
+        } as never),
+      dispatch: vi.fn(),
+      prepareMedia,
+      nowSeconds: () => FIXTURE_NOW,
+    });
+
+    await expect(processor.handle(createMediaFixture())).resolves.toEqual({
+      handled: false,
+    });
+    expect(prepareMedia).not.toHaveBeenCalled();
   });
 
   it("routes only the authenticated inner sender and returns a decryptable native reply", async () => {
@@ -819,4 +921,23 @@ function expectOuterPublicKey(secretKey: Uint8Array): string {
   // Imported lazily would obscure the assertion; this is scalar(3)'s pubkey.
   void secretKey;
   return "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9";
+}
+
+function createMediaFixture(): NostrEvent {
+  const unsigned = {
+    kind: 15,
+    content: "https://blossom.example/media/photo.bin",
+    tags: [
+      ["p", BOT_PUBLIC_KEY],
+      ["file-type", "image/png"],
+      ["encryption-algorithm", "aes-gcm"],
+      ["decryption-key", "11".repeat(32)],
+      ["decryption-nonce", "22".repeat(16)],
+      ["x", "33".repeat(32)],
+    ],
+    created_at: FIXTURE_NOW - 60,
+    pubkey: SENDER_PUBLIC_KEY,
+  };
+  const rumor = { ...unsigned, id: getEventHash(unsigned) };
+  return createArmadaFixture({ rumorTransform: () => rumor });
 }

@@ -7,6 +7,9 @@ const SUBPATHS = [
   "openclaw/plugin-sdk/json-schema-runtime",
   "openclaw/plugin-sdk/secret-input-runtime",
   "openclaw/plugin-sdk/status-helpers",
+  "openclaw/plugin-sdk/channel-inbound",
+  "openclaw/plugin-sdk/media-store",
+  "openclaw/plugin-sdk/web-media",
 ];
 
 const packageJson = JSON.parse(

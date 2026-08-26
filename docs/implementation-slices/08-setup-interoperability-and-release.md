@@ -61,7 +61,7 @@ An operator who provisioned `/home/claw/.openclaw/secrets/nostr_nsec`, installed
 - Document authoritative kind-10050 routing and the relay-metadata cost of automatic configured-relay owner fallback.
 - Document secret rotation as a new bot identity, including replay namespace and owner-contact migration.
 - Document channel ownership migration from `nostr-nip17`, including that old pairing approvals remain untouched but are ignored.
-- Document unsupported media, reactions, groups, NIP-04, presence, disappearing messages, and unsolicited/scheduled sends. Slice 09 separately adds outbound Armada DM typing.
+- At this slice boundary, document unsupported media, reactions, groups, NIP-04, presence, disappearing messages, and unsolicited/scheduled sends. Slice 09 separately adds outbound Armada DM typing, and Slice 10 later adds encrypted inbound media while retaining text-only replies.
 - Recommend least-privilege tools and sandboxing for the exposed OpenClaw agent.
 
 ## Deliverables

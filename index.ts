@@ -32,6 +32,14 @@ export {
   type UnwrapDirectMessageInput,
   type ValidateGiftWrapCarrierInput,
 } from "./src/nip17.js";
+export {
+  materializeInboundMedia,
+  MediaIngressError,
+  parseInboundMedia,
+  type EncryptedInboundAttachment,
+  type MaterializedInboundMedia,
+  type ParsedInboundMedia,
+} from "./src/media-ingress.js";
 export { SECURITY_LIMITS, type SecurityLimits } from "./src/security-limits.js";
 
 interface ArmadaDmEntry {

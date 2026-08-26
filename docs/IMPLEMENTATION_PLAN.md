@@ -4,7 +4,7 @@
 
 Build a standalone OpenClaw channel plugin that lets people talk privately to an OpenClaw agent from Armada using standard Nostr end-to-end encrypted direct messages:
 
-- NIP-17 `kind:14` direct-message rumors;
+- NIP-17 `kind:14` direct-message and `kind:15` encrypted file rumors;
 - NIP-44 v2 encryption;
 - NIP-59 `kind:13` seals and `kind:1059` gift wraps;
 - one-to-one direct conversations only.
@@ -50,6 +50,7 @@ Important interoperability finding: Armada is the client, not one fixed messagin
 10. Survive relay failures and reconnect without duplicate agent turns.
 11. Provide a documented manual configuration flow, status/probe output, tests, and a release-ready package.
 12. Show an encrypted Armada typing indicator while an admitted owner's agent turn is active.
+13. Safely materialize encrypted Armada and NIP-17 attachments for OpenClaw's media-aware agent pipeline.
 
 ### Non-goals for the first release
 
@@ -59,7 +60,7 @@ Important interoperability finding: Armada is the client, not one fixed messagin
 - Lightning, LND, CLN, zaps, node lookup, or TunnelSats business logic.
 - A plugin-owned slash-command registry or native command catalog.
 - Porting `parseCommand`, `registerCommand`, `CommandContext`, or command handlers from `nostr-community-bot`.
-- Media/file DMs (`kind:15`), reactions, deletes, message edits, disappearing-message timers, or presence.
+- Reactions, deletes, message edits, disappearing-message timers, or presence.
 - NIP-04 legacy DMs or an automatic privacy downgrade.
 - NIP-46 remote signing or plugin-generated keys in v1. The operator supplies a dedicated `nsec` in a permission-restricted secret file, resolved through OpenClaw's secret-input system.
 - Contact/profile search or mutable display-name-based addressing. Stable pubkeys are the identity boundary.
@@ -115,7 +116,8 @@ Keep four boundaries explicit:
 1. `nip17.ts` owns event construction, encryption, decryption, and structural validation.
 2. `relay-*` modules own WebSocket connections, NIP-42, subscriptions, reconnects, and publication acknowledgements.
 3. `inbound.ts` owns mapping a verified rumor into OpenClaw's authorization and dispatch contracts.
-4. `channel.ts`/`gateway.ts` own OpenClaw lifecycle, account configuration, reply delivery, and outbound results.
+4. `media-ingress.ts` owns encrypted attachment metadata validation, guarded download, integrity verification, decryption, and managed-media persistence.
+5. `channel.ts`/`gateway.ts` own OpenClaw lifecycle, account configuration, reply delivery, and outbound results.
 
 Crypto and relay code must not import OpenClaw agent/runtime internals. OpenClaw adapters must not duplicate cryptographic parsing.
 
@@ -153,6 +155,7 @@ Crypto and relay code must not import OpenClaw agent/runtime internals. OpenClaw
     ├── gateway.ts
     ├── inbound.ts
     ├── identity.ts
+    ├── media-ingress.ts
     ├── nip17.ts
     ├── relay-manager.ts
     ├── relay-session.ts
@@ -169,6 +172,7 @@ Crypto and relay code must not import OpenClaw agent/runtime internals. OpenClaw
         ├── relay-routing.test.ts
         ├── documentation.test.ts
         ├── metadata.test.ts
+        ├── media-ingress.test.ts
         └── relay-session.test.ts
 ```
 
@@ -474,7 +478,8 @@ Define all limits in one typed `SECURITY_LIMITS` object and exercise their defau
 | ------------------------------------ | ---------------------------------------------------------------------------------- |
 | Serialized outer event               | 131,072 UTF-8 bytes                                                                |
 | Outer/seal ciphertext string         | 100,000 UTF-8 bytes per layer                                                      |
-| Tags                                 | 32 tags, 8 elements per tag, 1,024 UTF-8 bytes per element                         |
+| Tags                                 | 32 tags, 16 elements per tag, 1,024 UTF-8 bytes per element                        |
+| Inbound encrypted media              | 4 attachments; 20 MiB plaintext each; 40 MiB aggregate; 20s load each              |
 | Relay URL                            | 2,048 UTF-8 bytes                                                                  |
 | Configured inbox/discovery relays    | 8 each                                                                             |
 | Recipient-provided delivery relays   | 3                                                                                  |
@@ -497,9 +502,9 @@ Values may be tuned before release using loopback load tests, but implementation
 
 - `chatTypes: ["direct"]`;
 - `threads: false`;
-- text/Markdown capability only;
+- text/Markdown plus encrypted inbound-media capability;
 - target prefix `nostr`;
-- no groups, directory groups, media, reactions, polls, native commands, or inbound/OpenClaw typing capability; Slice 09's outbound DM heartbeat is transport-owned;
+- no groups, directory groups, outbound media, reactions, polls, native commands, or inbound/OpenClaw typing capability; Slice 09's outbound DM heartbeat is transport-owned;
 - reload prefix `channels.nostr`.
 
 Use the narrow public `openclaw/plugin-sdk/*` entrypoints. Do not import OpenClaw core files under `src/channels/**`.
@@ -531,7 +536,8 @@ Expose response text only through the delivery callback created for an admitted 
 - durable final text: yes;
 - native reply reference: yes, through the inner `e` tag;
 - native threads: no;
-- media/reactions/actions: no.
+- inbound encrypted media: yes, through managed local OpenClaw media fields;
+- outbound media/reactions/actions: no.
 
 Return the inner rumor ID as `messageId`; outer wrap IDs are relay carriers and differ between recipient and self copies.
 
@@ -562,6 +568,7 @@ Implementation work is divided into the following ordered, agent-ready files. Ea
 7. [`07-replay-resilience-and-resource-limits.md`](implementation-slices/07-replay-resilience-and-resource-limits.md) — harden duplicates, restarts, relay failures, shutdown, and overload behavior.
 8. [`08-setup-interoperability-and-release.md`](implementation-slices/08-setup-interoperability-and-release.md) — complete manual configuration guidance, probes, real Armada staging, packaging, and release evidence.
 9. [`09-armada-typing-notifications.md`](implementation-slices/09-armada-typing-notifications.md) — publish Armada-compatible encrypted ephemeral typing notifications only while an admitted owner turn is active.
+10. [`10-nip17-encrypted-media-ingress.md`](implementation-slices/10-nip17-encrypted-media-ingress.md) — authenticate, download, decrypt, and materialize current Armada and standard NIP-17 file messages for the agent turn.
 
 Slices are sequential: an agent starts only after every dependency's exit gate is green. For every slice, follow red-green-refactor: add a focused failing test, observe the intended failure, implement the minimum change, then refactor with focused and full suites green. The detailed coverage inventory below remains normative; the slice files assign those requirements to implementable work packets.
 
@@ -746,7 +753,7 @@ The README should include:
 - the human-initiated conversation flow and absence of unsolicited/scheduled sends;
 - status/probe and troubleshooting instructions;
 - the OpenClaw-host/model plaintext trust boundary;
-- supported outbound Armada DM typing behavior and unsupported media, reactions, groups, NIP-04, presence, and disappearing messages.
+- supported encrypted inbound media and outbound Armada DM typing behavior, plus unsupported outbound media, reactions, groups, NIP-04, presence, and disappearing messages.
 
 `SECURITY.md` should cover file-secret ownership/permissions and rotation, reporting, log redaction, relay SSRF/network policy, NIP-42 identity disclosure to authenticated relays, relay metadata limitations, replay/spam/resource controls, residual at-least-once crash semantics, model-provider exposure, why stale pairing approvals are ignored, and why a human identity's nsec must never be used as the bot key. Recommend least-privilege OpenClaw tools and sandboxing for every agent reachable through this channel.
 
@@ -757,12 +764,13 @@ The first release is complete when all of the following are true:
 - An npm-managed local OpenClaw checkout can discover the plugin after local `npm install`, and a clean standard OpenClaw installation can install the packed package through `npm-pack:`; both can configure, enable, disable, inspect, and remove it.
 - All required manual configuration, secret, channel, single-owner ingress, reply-delivery, status, and lifecycle flows pass against OpenClaw `2026.6.1` (`2e08f0f`), and the package advertises that version as its minimum host/plugin API.
 - A pre-existing owner of channel `nostr` produces a clear conflict; migration to plugin `armada-dm` preserves the operator's `channels.nostr` and `secrets.providers.nostr` configuration only after the previous owner is disabled or removed.
-- The plugin exposes only direct text chat capability.
+- The plugin exposes direct text chat and encrypted inbound-media capability only.
 - A valid Armada NIP-17 kind-14 DM reaches the intended OpenClaw agent once under cross-relay replay, rewrapping, reconnect, and concurrent-delivery tests; residual process-crash semantics are documented accurately rather than described as absolute exactly-once execution.
 - Sender authorization and session identity derive only from the verified inner sender.
 - The bot private key is resolved only from an OpenClaw `singleValue` file SecretRef containing one `nsec`; configuration, CLI arguments, environment variables, logs, status, and errors never contain it.
 - The agent's response is a fresh NIP-59 gift wrap that the current Armada client decrypts and displays.
 - During an admitted owner turn, Armada receives current encrypted ephemeral typing wraps; completion, failure, and cancellation stop refreshes without affecting the durable reply.
+- Standard kind-15 files and current Armada kind-14 encrypted attachments reach OpenClaw as managed local media only after authentication, authorization, replay claiming, rate limiting, guarded download, integrity verification, and local decryption.
 - The bot cannot initiate a DM independently of an authenticated, admitted owner turn.
 - Recipient kind-10050 discovery, SSRF/DNS-rebinding defenses, authoritative valid-list routing, and automatic configured-relay owner fallback are covered by tests.
 - A sender self-copy is emitted without causing a recursive agent turn.
@@ -776,7 +784,7 @@ The first release is complete when all of the following are true:
 
 These require separate product decisions and must not silently expand v1:
 
-- NIP-15 file messages and encrypted media upload;
+- bot-authored encrypted media upload and outbound media replies;
 - NIP-17 reactions and wrapped deletion requests;
 - Armada disappearing-message extensions;
 - profile/name directory lookup;
@@ -794,5 +802,6 @@ These require separate product decisions and must not silently expand v1:
 - **Feature-complete v1:** Slices 05–06 lock access to one owner, add automatic owner relay fallback, and publish sender recovery copies for human-initiated replies.
 - **Release candidate:** Slices 07–08 prove failure behavior, resource bounds, manual configuration, exact-host packaging, and interoperability with the current Armada client.
 - **Armada typing interoperability:** Slice 09 adds best-effort encrypted typing UX without widening the human-initiated conversation boundary.
+- **Encrypted media ingress:** Slice 10 adds bounded standard kind-15 and current Armada attachment analysis while keeping replies text-only.
 
 Prefer one pull request per slice. A pull request must link its slice file, satisfy that file's exit gate, and leave the full suite green. Do not combine Slice 04 with later policy or recovery-copy work: keeping the first end-to-end path narrow makes sender identity, relay routing, and OpenClaw dispatch independently reviewable.

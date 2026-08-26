@@ -1,6 +1,6 @@
 # OpenClaw Armada DM
 
-`openclaw-armada-dm` is an OpenClaw channel plugin for private, one-to-one Armada conversations over standard Nostr NIP-17 direct messages. It provides a strict single-owner allowlist, file-backed bot identity, redundant relay inbox, authenticated AI replies, Armada-compatible encrypted typing notifications, sender recovery copies, durable replay suppression, bounded resource use, and sanitized operational probes.
+`openclaw-armada-dm` is an OpenClaw channel plugin for private, one-to-one Armada conversations over standard Nostr NIP-17 direct messages. It provides a strict single-owner allowlist, file-backed bot identity, redundant relay inbox, authenticated AI replies, encrypted inbound image/audio/video/file analysis, Armada-compatible encrypted typing notifications, sender recovery copies, durable replay suppression, bounded resource use, and sanitized operational probes.
 
 ## Build and local installation
 
@@ -148,6 +148,10 @@ NIP-42 AUTH events are connection-scoped, short-lived kind-22242 events and are 
 
 After an owner message passes authentication, authorization, replay claiming, and rate limiting, the plugin immediately publishes Armada's encrypted typing extension and refreshes it no more than once every four seconds while OpenClaw is generating the response. Each notification is an empty bot-authored kind-23311 rumor inside a fresh ephemeral kind-21059 NIP-59 wrap sent only to the owner's validated recipient relays. Typing is best-effort, has no sender recovery copy, and stops on completion, failure, or account cancellation; Armada removes a stale indicator locally after eight seconds.
 
+Encrypted attachments enter through standard NIP-17 kind-15 file rumors or the current Armada client's kind-14 `imeta` attachment form. Only authenticated, allowlisted owner turns are fetched. The plugin accepts AES-256-GCM media from validated HTTPS locations, verifies the advertised ciphertext hash when present (required for kind 15), verifies the plaintext hash when present (required when an Armada voice note omits `x`), decrypts locally, and saves the result through OpenClaw's managed inbound-media store. It passes only managed local paths, normalized content types, the caption, and sanitized attachment markers to OpenClaw; blob URLs and encryption parameters are not included in the agent body.
+
+Each turn is limited to four attachments, 20 MiB of plaintext per attachment, 40 MiB total plaintext, and a 20-second guarded load per attachment. A failed attachment becomes `[Attachment unavailable]`; valid siblings can still be analyzed. Whether a particular image, audio, video, PDF, or other file is understood depends on the configured OpenClaw model/provider. Bot-authored uploads and media replies are not implemented; replies remain encrypted text.
+
 Inbound authorization uses only the authenticated inner rumor author. The account and inner rumor ID are claimed in OpenClaw's persistent dedupe store before dispatch, committed after a successful turn, and released after failure. Recipient delivery discovers the newest valid signed kind-10050 list, caches it for one hour, revalidates its URLs as untrusted destinations, and never unions valid recipient relays with configured defaults. When the sole owner has no usable kind-10050, automatic fallback sends the encrypted reply only through configured relays.
 
 ## Allowlisted round-trip recipe
@@ -177,4 +181,4 @@ Rotation creates a new Nostr bot identity; it is not an in-place credential refr
 
 ## Unsupported features
 
-The plugin supports direct text replies plus outbound ephemeral Armada typing notifications for an admitted owner turn. It does not implement groups, public notes, NIP-04, media/files, reactions, deletes, edits, inbound typing, presence, disappearing messages, scheduled sends, unsolicited bot-initiated DMs, or a native command registry.
+The plugin supports inbound encrypted files/media, direct text replies, and outbound ephemeral Armada typing notifications for an admitted owner turn. It does not implement outbound media uploads/replies, groups, public notes, NIP-04, plaintext remote attachments, reactions, deletes, edits, inbound typing, presence, disappearing messages, scheduled sends, unsolicited bot-initiated DMs, or a native command registry.
