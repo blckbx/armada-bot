@@ -47,16 +47,16 @@ Only one enabled plugin may own channel ID `nostr`. Before enabling `armada-dm`,
 Use a dedicated bot key, never a human identity key. Provision the single-value secret file before enabling the channel:
 
 ```bash
-install -d -m 700 /home/claw/.openclaw/secrets
+install -d -m 700 /path/to/.openclaw/secrets
 umask 077
 read -rsp 'Paste Nostr nsec: ' NSEC; printf '\n'
-printf '%s\n' "$NSEC" > /home/claw/.openclaw/secrets/nostr_nsec
+printf '%s\n' "$NSEC" > /path/to/.openclaw/secrets/nostr_nsec
 unset NSEC
-chmod 600 /home/claw/.openclaw/secrets/nostr_nsec
+chmod 600 /path/to/.openclaw/secrets/nostr_nsec
 
 openclaw config set secrets.providers.nostr \
   --provider-source file \
-  --provider-path /home/claw/.openclaw/secrets/nostr_nsec \
+  --provider-path /path/to/.openclaw/secrets/nostr_nsec \
   --provider-mode singleValue
 
 openclaw config set channels.nostr.privateKey \
@@ -93,7 +93,7 @@ No setup command is required. Add the provider and channel entries to `openclaw.
     "providers": {
       "nostr": {
         "source": "file",
-        "path": "/home/claw/.openclaw/secrets/nostr_nsec",
+        "path": "/path/to/.openclaw/secrets/nostr_nsec",
         "mode": "singleValue"
       }
     }

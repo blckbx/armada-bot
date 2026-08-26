@@ -2,7 +2,7 @@
 
 Report suspected vulnerabilities privately to the repository maintainers. Do not include live secret keys, decrypted messages, ciphertext, or AUTH challenges in a report unless a secure exchange has been agreed.
 
-Use a dedicated Nostr bot identity. Store its single `nsec` at `/home/claw/.openclaw/secrets/nostr_nsec` in a mode-0700 directory and a mode-0600 file, configure OpenClaw's `nostr` single-value file provider, and reference it from `channels.nostr.privateKey`. The plugin never opens that file directly and must never expose the resolved key through configuration, logs, errors, or status.
+Use a dedicated Nostr bot identity. Store its single `nsec` at `/path/to/.openclaw/secrets/nostr_nsec` in a mode-0700 directory and a mode-0600 file, configure OpenClaw's `nostr` single-value file provider, and reference it from `channels.nostr.privateKey`. The plugin never opens that file directly and must never expose the resolved key through configuration, logs, errors, or status.
 
 NIP-17 is transport end-to-end encryption. Plaintext exists on the OpenClaw host and is provided to the operator's configured model provider. Use least-privilege tools and sandboxing for every agent reachable through this channel.
 
