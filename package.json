@@ -1,6 +1,6 @@
 {
   "name": "openclaw-armada-dm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenClaw channel plugin for private Armada NIP-17 direct messages",
   "type": "module",
   "main": "./dist/index.js",

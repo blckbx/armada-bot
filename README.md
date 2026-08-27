@@ -31,9 +31,9 @@ For a standard OpenClaw installation, pack and install the managed artifact:
 
 ```bash
 npm pack
-sha256sum openclaw-armada-dm-0.1.0.tgz > openclaw-armada-dm-0.1.0.tgz.sha256
-sha256sum --check openclaw-armada-dm-0.1.0.tgz.sha256
-openclaw plugins install npm-pack:/absolute/path/openclaw-armada-dm-0.1.0.tgz
+sha256sum openclaw-armada-dm-0.1.1.tgz > openclaw-armada-dm-0.1.1.tgz.sha256
+sha256sum --check openclaw-armada-dm-0.1.1.tgz.sha256
+openclaw plugins install npm-pack:/absolute/path/openclaw-armada-dm-0.1.1.tgz
 openclaw plugins enable armada-dm
 openclaw gateway restart
 ```
