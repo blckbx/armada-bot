@@ -31,10 +31,17 @@ For a standard OpenClaw installation, pack and install the managed artifact:
 
 ```bash
 npm pack
+sha256sum openclaw-armada-dm-0.1.0.tgz > openclaw-armada-dm-0.1.0.tgz.sha256
+sha256sum --check openclaw-armada-dm-0.1.0.tgz.sha256
 openclaw plugins install npm-pack:/absolute/path/openclaw-armada-dm-0.1.0.tgz
 openclaw plugins enable armada-dm
 openclaw gateway restart
 ```
+
+After each change reaches `main` (including every merged pull request), CI repeats
+the install, test, build, validation, and pack sequence. The workflow artifact
+contains both the `.tgz` package and its `.sha256` file so a downloaded package
+can be checked with `sha256sum --check <package>.tgz.sha256`.
 
 The published `setup-entry.js` uses only the OpenClaw `2026.6.1` public SDK compatibility baseline, while deployment requires patched OpenClaw `2026.7.2-beta.6` or newer. It does not run a wizard, prompt for values, edit configuration, read the secret file, publish events, or start relay connections.
 
