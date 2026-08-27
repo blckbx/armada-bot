@@ -19,3 +19,37 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run ci
+
+  package:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+      - run: npm install
+      - run: npm test
+      - run: npm run build
+      - run: npm run package:validate
+      - name: Pack artifact and write SHA-256 checksum
+        id: pack
+        shell: bash
+        run: |
+          package_file="$(npm pack --silent)"
+          sha256sum "${package_file}" > "${package_file}.sha256"
+          echo "package_file=${package_file}" >> "${GITHUB_OUTPUT}"
+      - name: Verify SHA-256 checksum
+        shell: bash
+        run: sha256sum --check "${{ steps.pack.outputs.package_file }}.sha256"
+      - name: Upload package and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: openclaw-armada-dm-${{ github.sha }}
+          path: |
+            ${{ steps.pack.outputs.package_file }}
+            ${{ steps.pack.outputs.package_file }}.sha256
+          if-no-files-found: error

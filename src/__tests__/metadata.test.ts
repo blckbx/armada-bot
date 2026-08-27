@@ -112,6 +112,23 @@ describe("package and manifest contracts", () => {
     expect(workflow).toContain("npm run ci");
   });
 
+  it("packs a checksummed artifact after changes reach main", async () => {
+    const workflow = await readFile(
+      new URL(".github/workflows/ci.yml", root),
+      "utf8",
+    );
+
+    expect(workflow).toContain("github.event_name == 'push'");
+    expect(workflow).toContain("github.ref == 'refs/heads/main'");
+    expect(workflow).toContain("npm install");
+    expect(workflow).toContain("npm test");
+    expect(workflow).toContain("npm run build");
+    expect(workflow).toContain("npm run package:validate");
+    expect(workflow).toContain("npm pack");
+    expect(workflow).toContain("sha256sum");
+    expect(workflow).toContain("actions/upload-artifact@v4");
+  });
+
   it("fails CI when coverage falls below the repository baseline", async () => {
     const config = await readFile(new URL("vitest.config.mjs", root), "utf8");
 
