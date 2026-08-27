@@ -43,6 +43,21 @@ the install, test, build, validation, and pack sequence. The workflow artifact
 contains both the `.tgz` package and its `.sha256` file so a downloaded package
 can be checked with `sha256sum --check <package>.tgz.sha256`.
 
+## Publishing a GitHub release
+
+Maintainers can publish the package and checksum in the repository's Releases
+section by pushing a version tag after its version bump reaches `main`:
+
+```bash
+git tag -a v0.1.1 -m "v0.1.1"
+git push origin v0.1.1
+```
+
+The tag must exactly match `v` followed by the version in `package.json`. The
+release workflow repeats the install, test, build, package-validation, pack, and
+checksum sequence before creating the GitHub release. It attaches
+`openclaw-armada-dm-0.1.1.tgz` and its `.sha256` checksum as release assets.
+
 The published `setup-entry.js` uses only the OpenClaw `2026.6.1` public SDK compatibility baseline, while deployment requires patched OpenClaw `2026.7.2-beta.6` or newer. It does not run a wizard, prompt for values, edit configuration, read the secret file, publish events, or start relay connections.
 
 ## Migrating another Nostr channel
