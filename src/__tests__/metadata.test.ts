@@ -127,6 +127,7 @@ describe("package and manifest contracts", () => {
     expect(workflow).toContain("npm pack");
     expect(workflow).toContain("sha256sum");
     expect(workflow).toContain("actions/upload-artifact@v4");
+    expect(workflow).toContain("name: ${{ steps.pack.outputs.package_file }}");
   });
 
   it("fails CI when coverage falls below the repository baseline", async () => {

@@ -48,7 +48,7 @@ jobs:
       - name: Upload package and checksum
         uses: actions/upload-artifact@v4
         with:
-          name: openclaw-armada-dm-${{ github.sha }}
+          name: ${{ steps.pack.outputs.package_file }}
           path: |
             ${{ steps.pack.outputs.package_file }}
             ${{ steps.pack.outputs.package_file }}.sha256
