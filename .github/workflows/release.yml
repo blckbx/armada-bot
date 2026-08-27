@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+      - name: Verify version tag
+        shell: bash
+        run: |
+          package_version="$(node -p 'require("./package.json").version')"
+          if [[ "${GITHUB_REF_NAME}" != "v${package_version}" ]]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package version ${package_version}."
+            exit 1
+          fi
+      - run: npm install
+      - run: npm test
+      - run: npm run build
+      - run: npm run package:validate
+      - name: Pack release and write SHA-256 checksum
+        id: pack
+        shell: bash
+        run: |
+          package_file="$(npm pack --silent)"
+          sha256sum "${package_file}" > "${package_file}.sha256"
+          echo "package_file=${package_file}" >> "${GITHUB_OUTPUT}"
+      - name: Verify SHA-256 checksum
+        shell: bash
+        run: sha256sum --check "${{ steps.pack.outputs.package_file }}.sha256"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            "${{ steps.pack.outputs.package_file }}" \
+            "${{ steps.pack.outputs.package_file }}.sha256" \
+            --verify-tag \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes

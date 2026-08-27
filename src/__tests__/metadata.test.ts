@@ -127,6 +127,25 @@ describe("package and manifest contracts", () => {
     expect(workflow).toContain("npm pack");
     expect(workflow).toContain("sha256sum");
     expect(workflow).toContain("actions/upload-artifact@v4");
+    expect(workflow).toContain("name: ${{ steps.pack.outputs.package_file }}");
+  });
+
+  it("publishes checksummed packages as version-tagged GitHub releases", async () => {
+    const workflow = await readFile(
+      new URL(".github/workflows/release.yml", root),
+      "utf8",
+    );
+
+    expect(workflow).toContain('tags: ["v*"]');
+    expect(workflow).toContain("contents: write");
+    expect(workflow).toContain("npm install");
+    expect(workflow).toContain("npm test");
+    expect(workflow).toContain("npm run build");
+    expect(workflow).toContain("npm run package:validate");
+    expect(workflow).toContain("npm pack");
+    expect(workflow).toContain("sha256sum");
+    expect(workflow).toContain("gh release create");
+    expect(workflow).toContain("--verify-tag");
   });
 
   it("fails CI when coverage falls below the repository baseline", async () => {
