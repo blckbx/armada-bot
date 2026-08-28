@@ -19,7 +19,7 @@ describe("package and manifest contracts", () => {
     const channel = metadata.channel as Record<string, unknown>;
 
     expect(pkg.name).toBe("openclaw-armada-dm");
-    expect(pkg.version).toBe("0.1.2");
+    expect(pkg.version).toBe("0.1.3");
     expect(manifest.id).toBe("armada-dm");
     expect(manifest.kind).toBe("channel");
     expect(manifest.channels).toEqual(["nostr"]);
@@ -30,7 +30,7 @@ describe("package and manifest contracts", () => {
     expect(metadata).not.toHaveProperty("runtimeSetupEntry");
     expect(metadata.compat).toEqual({ pluginApi: ">=2026.6.34" });
     expect(metadata.install).toMatchObject({
-      minHostVersion: ">=2026.7.2-beta.6",
+      minHostVersion: ">=2026.6.34",
     });
     expect(metadata.build).toEqual({
       openclawVersion: "2026.6.34",
@@ -41,9 +41,9 @@ describe("package and manifest contracts", () => {
     );
     expect(
       (pkg.devDependencies as Record<string, string>)["openclaw-host"],
-    ).toBe("npm:openclaw@2026.7.2-beta.6");
+    ).toBeUndefined();
     expect((pkg.peerDependencies as Record<string, string>).openclaw).toBe(
-      ">=2026.7.2-beta.6",
+      ">=2026.6.34",
     );
     const scripts = pkg.scripts as Record<string, string>;
     expect(scripts["sdk:baseline"]).toBe(
@@ -170,7 +170,7 @@ describe("package and manifest contracts", () => {
     expect(config).toContain("lines: 85");
   });
 
-  it("audits the complete tree and isolates only the exact SDK baseline", async () => {
+  it("audits the complete tree and isolates only the exact host baseline", async () => {
     const validator = await readFile(
       new URL("scripts/validate-host-security.mjs", root),
       "utf8",
@@ -179,6 +179,6 @@ describe("package and manifest contracts", () => {
     expect(validator).toContain('runAudit(["--json"])');
     expect(validator).toContain('runAudit(["--omit=dev", "--json"])');
     expect(validator).toContain("node_modules/openclaw/node_modules/");
-    expect(validator).toContain("node_modules/openclaw-host");
+    expect(validator).not.toContain("node_modules/openclaw-host/node_modules/");
   });
 });

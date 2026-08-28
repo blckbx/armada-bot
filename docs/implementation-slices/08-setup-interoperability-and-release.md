@@ -6,7 +6,7 @@ Finish operator documentation, diagnostics, interoperability evidence, and relea
 
 ## Functional outcome
 
-An operator who provisioned `/path/to/.openclaw/secrets/nostr_nsec`, installed the package on OpenClaw `2026.7.2-beta.6` or newer, and added the documented `secrets.providers.nostr` and `channels.nostr` configuration can restart the gateway, see a truthful sanitized probe, and hold a multi-turn encrypted conversation with the bot from the current Armada client. With `publishInbox: true`, gateway startup publishes and verifies the bot's kind-10050 inbox automatically. The package continues to use only the OpenClaw `2026.6.34` public SDK baseline.
+An operator who provisioned `/path/to/.openclaw/secrets/nostr_nsec`, installed the package on OpenClaw `2026.6.34` or newer, and added the documented `secrets.providers.nostr` and `channels.nostr` configuration can restart the gateway, see a truthful sanitized probe, and hold a multi-turn encrypted conversation with the bot from the current Armada client. With `publishInbox: true`, gateway startup publishes and verifies the bot's kind-10050 inbox automatically. The package continues to use only the OpenClaw `2026.6.34` public SDK baseline.
 
 ## Dependencies
 
@@ -36,13 +36,13 @@ An operator who provisioned `/path/to/.openclaw/secrets/nostr_nsec`, installed t
 - The minimal setup entry and runtime package entries import without sockets, timers, configuration mutation, secret access, or transport startup.
 - `publishInbox: true` publishes and verifies the configured Armada/Ditto/Dreamith kind-10050 tags during gateway startup; failure remains visible and prevents ready status.
 - Status distinguishes invalid configuration/identity, unreachable relays, AUTH state, subscription state, missing inbox announcement, dedupe degradation, queue drops, authenticated rate limiting, partial relay operation, and healthy operation without payloads or relationship metadata.
-- CI runs the full tests, coverage, lint, typecheck, format check, build, manifest/package validation, package dry-run, package-content allowlist, exact `2026.6.34` SDK-import baseline, built-artifact smoke test, and complete-tree/zero-runtime-vulnerability audit.
+- CI runs the full tests, coverage, lint, typecheck, format check, build, manifest/package validation, package dry-run, package-content allowlist, exact `2026.6.34` SDK-import baseline, built-artifact smoke test, and complete-tree dependency audit.
 - A built-artifact test imports emitted JavaScript and proves an Armada-compatible NIP-17 request/reply encryption round trip without importing TypeScript source modules.
 
 ## Manual Armada staging
 
 1. Use disposable bot and user keys; never use a human's long-lived identity as the bot key.
-2. Install the packed artifact into a clean OpenClaw `2026.7.2-beta.6` or newer instance.
+2. Install the packed artifact into a clean OpenClaw `2026.6.34` or newer instance.
 3. Provision the bot `nsec` through the documented mode-0700 directory, mode-0600 file, `singleValue` provider, and SecretRef commands.
 4. Add the documented `channels.nostr` configuration with the disposable Armada user as the sole `allowFrom` owner and `publishInbox: true`.
 5. Restart the gateway and verify the probe reports the derived bot public identity, at least one live subscription, and a verified Armada/Ditto/Dreamith inbox announcement.
@@ -74,7 +74,7 @@ An operator who provisioned `/path/to/.openclaw/secrets/nostr_nsec`, installed t
 
 ## Exit gate
 
-- Both local `npm install --omit=dev /absolute/path/to/openclaw-armada-dm` and managed `npm-pack:` workflows are documented and validated against OpenClaw `2026.7.2-beta.6` or newer.
+- Both local `npm install --omit=dev /absolute/path/to/openclaw-armada-dm` and managed `npm-pack:` workflows are documented and validated against OpenClaw `2026.6.34` or newer.
 - Adding the documented configuration and restarting the gateway is sufficient to publish/verify the bot inbox and reach ready status; no setup command is required.
 - The current Armada client sends a NIP-17 DM that reaches the intended OpenClaw agent once under normal duplicate delivery, then decrypts and renders the bot's response.
 - Human-initiated multi-turn replies, sender recovery copies, sole-owner allowlist, restart recovery, partial relay failure, authoritative kind-10050 routing, and automatic owner fallback have automated or manual evidence.

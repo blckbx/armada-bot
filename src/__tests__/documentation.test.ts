@@ -18,8 +18,8 @@ describe("manual configuration documentation", () => {
   it("uses the current package version in release commands", async () => {
     const readme = await readFile(new URL("README.md", root), "utf8");
 
-    expect(readme).toContain("openclaw-armada-dm-0.1.2.tgz");
-    expect(readme).toContain('git tag -a v0.1.2 -m "v0.1.2"');
+    expect(readme).toContain("openclaw-armada-dm-0.1.3.tgz");
+    expect(readme).toContain('git tag -a v0.1.3 -m "v0.1.3"');
     expect(readme).not.toContain("0.1.1");
   });
 

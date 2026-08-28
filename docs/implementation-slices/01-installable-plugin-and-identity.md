@@ -23,7 +23,7 @@ This is an operator-facing slice. It does not yet exchange Nostr messages.
   - npm package `openclaw-armada-dm`;
   - plugin ID `armada-dm`;
   - channel ID `nostr`;
-  - exact plugin API baseline `2026.6.34` and minimum deployable host `2026.7.2-beta.6`.
+  - exact plugin API baseline `2026.6.34` and minimum deployable host `2026.6.34`.
 - Add import-safe built runtime and setup entry points.
 - Register the single-account text-DM channel using only public SDK exports present at the pinned OpenClaw commit.
 - Add strict runtime and manifest schemas for `channels.nostr`.
@@ -62,9 +62,9 @@ This is an operator-facing slice. It does not yet exchange Nostr messages.
 
 ## Exit gate
 
-- Tests, lint, typecheck/build, package validation, `npm pack --dry-run`, and the complete-tree/zero-runtime-vulnerability audit pass.
-- A clean npm-managed OpenClaw `2026.7.2-beta.6` or newer checkout discovers the plugin after `npm install --omit=dev /absolute/path/to/openclaw-armada-dm`.
-- A clean OpenClaw `2026.7.2-beta.6` or newer instance discovers the packed artifact through `openclaw plugins install npm-pack:/absolute/path/to/package.tgz`.
+- Tests, lint, typecheck/build, package validation, `npm pack --dry-run`, and the complete-tree dependency audit pass.
+- A clean npm-managed OpenClaw `2026.6.34` or newer checkout discovers the plugin after `npm install --omit=dev /absolute/path/to/openclaw-armada-dm`.
+- A clean OpenClaw `2026.6.34` or newer instance discovers the packed artifact through `openclaw plugins install npm-pack:/absolute/path/to/package.tgz`.
 - With the documented pre-provisioned SecretRef, status shows the correct bot `npub` and never the secret.
 - No relay connection or message processing exists yet.
 
