@@ -25,7 +25,7 @@ jobs:
             echo "::error::Tag ${GITHUB_REF_NAME} does not match package version ${package_version}."
             exit 1
           fi
-      - run: npm install
+      - run: npm ci
       - run: npm test
       - run: npm run build
       - run: npm run package:validate

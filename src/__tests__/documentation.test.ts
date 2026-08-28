@@ -4,6 +4,17 @@ import { describe, expect, it } from "vitest";
 const root = new URL("../../", import.meta.url);
 
 describe("manual configuration documentation", () => {
+  it("omits development dependencies from local plugin installation", async () => {
+    const readme = await readFile(new URL("README.md", root), "utf8");
+
+    expect(readme).toContain(
+      "npm install --omit=dev /absolute/path/to/openclaw-armada-dm",
+    );
+    expect(readme).not.toContain(
+      "npm install /absolute/path/to/openclaw-armada-dm",
+    );
+  });
+
   it("documents openclaw.json configuration without requiring a wizard", async () => {
     const readme = await readFile(new URL("README.md", root), "utf8");
     const slice = await readFile(

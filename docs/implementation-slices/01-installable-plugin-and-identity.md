@@ -63,7 +63,7 @@ This is an operator-facing slice. It does not yet exchange Nostr messages.
 ## Exit gate
 
 - Tests, lint, typecheck/build, package validation, `npm pack --dry-run`, and the complete-tree/zero-runtime-vulnerability audit pass.
-- A clean npm-managed OpenClaw `2026.7.2-beta.6` or newer checkout discovers the plugin after `npm install /absolute/path/to/openclaw-armada-dm`.
+- A clean npm-managed OpenClaw `2026.7.2-beta.6` or newer checkout discovers the plugin after `npm install --omit=dev /absolute/path/to/openclaw-armada-dm`.
 - A clean OpenClaw `2026.7.2-beta.6` or newer instance discovers the packed artifact through `openclaw plugins install npm-pack:/absolute/path/to/package.tgz`.
 - With the documented pre-provisioned SecretRef, status shows the correct bot `npub` and never the secret.
 - No relay connection or message processing exists yet.

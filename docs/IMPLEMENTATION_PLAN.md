@@ -184,13 +184,13 @@ Crypto and relay code must not import OpenClaw agent/runtime internals. OpenClaw
 
 Use the pinned Ink-North repository as the OpenClaw integration template, with the OpenClaw `2026.6.1` source and documentation taking precedence over legacy template fields:
 
-| Template area                          | Action in this repository                                                                                                                                                                                          |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `package.json` OpenClaw metadata       | Reproduce the extension/setup/channel/install/compatibility metadata under the single consistent package name `openclaw-armada-dm`; add current built-runtime entry fields and a strict `files` allowlist.         |
-| Runtime/setup entry separation         | Keep `index.ts` and the minimal compatibility-only `setup-entry.ts` import-safe and publish matching built entries. Importing either entry must not prompt, mutate configuration, read secrets, or load transport. |
-| Channel registration/runtime injection | Adapt the public SDK registration and runtime setter for channel ID `nostr`, while keeping plugin ID `armada-dm`.                                                                                                  |
-| Single-owner DM policy integration     | Use OpenClaw's ingress authorization with `useDefaultPairingStore: false`; require one configured owner and do not create or consume pairing state.                                                                |
-| Local npm workflow                     | Preserve the ability to install the built package with `npm install /absolute/path/to/openclaw-armada-dm` from an npm-managed local OpenClaw checkout, and also test the supported managed `npm-pack:` flow.       |
+| Template area                          | Action in this repository                                                                                                                                                                                               |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `package.json` OpenClaw metadata       | Reproduce the extension/setup/channel/install/compatibility metadata under the single consistent package name `openclaw-armada-dm`; add current built-runtime entry fields and a strict `files` allowlist.              |
+| Runtime/setup entry separation         | Keep `index.ts` and the minimal compatibility-only `setup-entry.ts` import-safe and publish matching built entries. Importing either entry must not prompt, mutate configuration, read secrets, or load transport.      |
+| Channel registration/runtime injection | Adapt the public SDK registration and runtime setter for channel ID `nostr`, while keeping plugin ID `armada-dm`.                                                                                                       |
+| Single-owner DM policy integration     | Use OpenClaw's ingress authorization with `useDefaultPairingStore: false`; require one configured owner and do not create or consume pairing state.                                                                     |
+| Local npm workflow                     | Preserve the ability to install the built package with `npm install --omit=dev /absolute/path/to/openclaw-armada-dm` from an npm-managed local OpenClaw checkout, and also test the supported managed `npm-pack:` flow. |
 
 Do not copy the template's NIP-04 path, multi-account behavior, permissive schemas, outer-event-ID dedupe, configured-relay-only publication, sender/event logging, legacy `kind: "bundled-channel-entry"`, or `openclaw.bundle.json`. This project is a native, single-account, NIP-17-only plugin.
 
@@ -245,10 +245,10 @@ Published or packed artifacts must already contain built JavaScript. Installatio
 
 Two clean-host paths must be tested:
 
-1. Literal local-checkout workflow requested for this project: from an npm-managed local OpenClaw checkout, run `npm install /absolute/path/to/openclaw-armada-dm`, enable `armada-dm`, restart the gateway, and verify runtime discovery.
+1. Literal local-checkout workflow requested for this project: from an npm-managed local OpenClaw checkout, run `npm install --omit=dev /absolute/path/to/openclaw-armada-dm`, enable `armada-dm`, restart the gateway, and verify runtime discovery.
 2. OpenClaw-managed local artifact workflow: run `npm pack`, then `openclaw plugins install npm-pack:/absolute/path/openclaw-armada-dm-<version>.tgz`, enable the plugin, and verify runtime discovery.
 
-The README must explain that a bare `npm install` is only the contract for an npm-managed local OpenClaw checkout. Other installations should use OpenClaw's managed `npm-pack:` command so the plugin is registered, dependency-checked, and removable through OpenClaw.
+The README must explain that `npm install --omit=dev` is only the contract for an npm-managed local OpenClaw checkout. Other installations should use OpenClaw's managed `npm-pack:` command so the plugin is registered, dependency-checked, and removable through OpenClaw.
 
 Because `nostr` is a shared channel ID, installation must fail clearly if another enabled plugin already owns it. The migration guide must tell operators to disable/remove the previous `nostr-nip17` or bundled Nostr channel plugin while preserving `channels.nostr` and `secrets.providers.nostr`, then enable plugin ID `armada-dm`. Existing pairing approvals may remain on disk but are deliberately ignored by this plugin; installation must not delete them or broaden the configured owner. Contract tests must prove that ownership conflicts do not silently select one implementation.
 
@@ -595,7 +595,7 @@ Slices are sequential: an agent starts only after every dependency's exit gate i
 
 - `npm test`, `npm run lint`, `npm run build`, package validation, and `npm pack --dry-run` pass.
 - `npm run audit` reports zero production and deploy-host vulnerabilities, checks the complete tree, and rejects every finding outside the explicitly isolated development-only `openclaw@2026.6.1` SDK baseline.
-- A clean npm-managed local patched OpenClaw host discovers the plugin after `npm install /absolute/path/to/openclaw-armada-dm`; a clean managed patched host also discovers the packed tarball through `npm-pack:`.
+- A clean npm-managed local patched OpenClaw host discovers the plugin after `npm install --omit=dev /absolute/path/to/openclaw-armada-dm`; a clean managed patched host also discovers the packed tarball through `npm-pack:`.
 - The migration smoke test disables the prior Nostr plugin, preserves `secrets.providers.nostr` and `channels.nostr`, configures exactly one owner, enables plugin `armada-dm`, audits/reloads secrets, restarts the gateway, and proves existing `nostr` pairing approvals are ignored rather than deleted or imported.
 
 ### Coverage group 2 — NIP-17 cryptographic core
@@ -737,7 +737,7 @@ Slices are sequential: an agent starts only after every dependency's exit gate i
 
 **Release**
 
-- Pack an initial prerelease and test both local `npm install` and OpenClaw-managed `npm-pack:` installation against the exact `2026.6.1` API baseline and a deployable OpenClaw `2026.7.2-beta.6` or newer host. Registry publication is optional.
+- Pack an initial prerelease and test both local `npm install --omit=dev` and OpenClaw-managed `npm-pack:` installation against the exact `2026.6.1` API baseline and a deployable OpenClaw `2026.7.2-beta.6` or newer host. Registry publication is optional.
 - Promote to `1.0.0` only after the current Armada client initiates a conversation, receives an automatic reply, and the bot safely recognizes its recovery copy.
 
 ## 15. Required documentation
@@ -761,7 +761,7 @@ The README should include:
 
 The first release is complete when all of the following are true:
 
-- An npm-managed local OpenClaw checkout can discover the plugin after local `npm install`, and a clean standard OpenClaw installation can install the packed package through `npm-pack:`; both can configure, enable, disable, inspect, and remove it.
+- An npm-managed local OpenClaw checkout can discover the plugin after local `npm install --omit=dev`, and a clean standard OpenClaw installation can install the packed package through `npm-pack:`; both can configure, enable, disable, inspect, and remove it.
 - All required manual configuration, secret, channel, single-owner ingress, reply-delivery, status, and lifecycle flows use only the OpenClaw `2026.6.1` (`2e08f0f`) public SDK surface, and the package advertises patched OpenClaw `2026.7.2-beta.6` as its minimum deployable host.
 - A pre-existing owner of channel `nostr` produces a clear conflict; migration to plugin `armada-dm` preserves the operator's `channels.nostr` and `secrets.providers.nostr` configuration only after the previous owner is disabled or removed.
 - The plugin exposes direct text chat and encrypted inbound-media capability only.

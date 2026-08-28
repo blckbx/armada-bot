@@ -112,6 +112,15 @@ describe("package and manifest contracts", () => {
     expect(workflow).toContain("npm run ci");
   });
 
+  it("omits development dependencies in the local-install smoke test", async () => {
+    const smoke = await readFile(
+      new URL("scripts/smoke-install-paths.mjs", root),
+      "utf8",
+    );
+
+    expect(smoke).toContain('"--omit=dev"');
+  });
+
   it("packs a checksummed artifact after changes reach main", async () => {
     const workflow = await readFile(
       new URL(".github/workflows/ci.yml", root),
@@ -120,7 +129,8 @@ describe("package and manifest contracts", () => {
 
     expect(workflow).toContain("github.event_name == 'push'");
     expect(workflow).toContain("github.ref == 'refs/heads/main'");
-    expect(workflow).toContain("npm install");
+    expect(workflow).toContain("npm ci");
+    expect(workflow).not.toContain("npm install");
     expect(workflow).toContain("npm test");
     expect(workflow).toContain("npm run build");
     expect(workflow).toContain("npm run package:validate");
@@ -138,7 +148,8 @@ describe("package and manifest contracts", () => {
 
     expect(workflow).toContain('tags: ["v*"]');
     expect(workflow).toContain("contents: write");
-    expect(workflow).toContain("npm install");
+    expect(workflow).toContain("npm ci");
+    expect(workflow).not.toContain("npm install");
     expect(workflow).toContain("npm test");
     expect(workflow).toContain("npm run build");
     expect(workflow).toContain("npm run package:validate");

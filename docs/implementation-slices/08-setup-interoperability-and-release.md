@@ -74,7 +74,7 @@ An operator who provisioned `/path/to/.openclaw/secrets/nostr_nsec`, installed t
 
 ## Exit gate
 
-- Both local `npm install /absolute/path/to/openclaw-armada-dm` and managed `npm-pack:` workflows are documented and validated against OpenClaw `2026.7.2-beta.6` or newer.
+- Both local `npm install --omit=dev /absolute/path/to/openclaw-armada-dm` and managed `npm-pack:` workflows are documented and validated against OpenClaw `2026.7.2-beta.6` or newer.
 - Adding the documented configuration and restarting the gateway is sufficient to publish/verify the bot inbox and reach ready status; no setup command is required.
 - The current Armada client sends a NIP-17 DM that reaches the intended OpenClaw agent once under normal duplicate delivery, then decrypts and renders the bot's response.
 - Human-initiated multi-turn replies, sender recovery copies, sole-owner allowlist, restart recovery, partial relay failure, authoritative kind-10050 routing, and automatic owner fallback have automated or manual evidence.
