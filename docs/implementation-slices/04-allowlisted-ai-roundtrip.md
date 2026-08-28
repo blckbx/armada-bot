@@ -26,7 +26,7 @@ With `dmPolicy: "allowlist"` and the operator's user `npub` in `allowFrom`:
 - Implement the bounded inbound queue and `inbound.ts` mapping.
 - Authenticate and authorize exclusively with the verified inner rumor author.
 - Normalize configured allowlist entries to hex pubkeys.
-- Integrate the exact OpenClaw `2026.6.1` APIs:
+- Integrate the exact OpenClaw `2026.6.34` APIs:
   - `resolveStableChannelMessageIngress`;
   - `dispatchInboundDirectDmWithRuntime`;
   - stable direct-session identity;
@@ -63,14 +63,14 @@ With `dmPolicy: "allowlist"` and the operator's user `npub` in `allowFrom`:
 ## Deliverables
 
 - Inbound authorization/dispatch adapter.
-- Claimable-dedupe compatibility adapter for OpenClaw `2026.6.1`.
+- Claimable-dedupe compatibility adapter for OpenClaw `2026.6.34`.
 - Recipient relay discovery/routing module with SSRF and DNS-rebinding defenses.
 - Automatic reply adapter and full encrypted loopback integration test.
 - A concise manual recipe using an allowlisted disposable user npub.
 
 ## Exit gate
 
-- The complete encrypted request/AI-response path typechecks against the exact OpenClaw `2026.6.1` SDK baseline and passes on the patched deployable host with a mocked model response.
+- The complete encrypted request/AI-response path typechecks against the exact OpenClaw `2026.6.34` SDK baseline and passes on the patched deployable host with a mocked model response.
 - Two different allowlisted senders receive independent direct sessions.
 - A user without a valid kind-10050 gets a clear delivery failure; the plugin does not silently publish to Ditto/Dreamith.
 - All earlier slice tests remain green.

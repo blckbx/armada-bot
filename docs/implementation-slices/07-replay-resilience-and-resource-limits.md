@@ -33,7 +33,7 @@ The bot continues serving conversations when one relay fails, reconnects safely 
 - Different valid wraps containing the same inner rumor cause one dispatch.
 - Concurrent copies cannot both pass the claim gate.
 - Failed dispatch releases its claim; retry can succeed. Successful dispatch commits and suppresses later delivery.
-- Restart redelivery exercises the documented crash window and does not depend on APIs introduced after OpenClaw `2026.6.1`.
+- Restart redelivery exercises the documented crash window and does not depend on APIs introduced after OpenClaw `2026.6.34`.
 - Dedupe disk errors stop intake and expose a sanitized degraded state.
 - Offline message inside `recoveryLookbackSeconds` is processed after restart; stale messages are rejected.
 - Future, stale, self-authored, malformed, unauthorized, and oversized messages consume bounded work and never reach the model.

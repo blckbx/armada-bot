@@ -4,9 +4,9 @@ Report suspected vulnerabilities privately to the repository maintainers. Do not
 
 Use a dedicated Nostr bot identity. Store its single `nsec` at `/path/to/.openclaw/secrets/nostr_nsec` in a mode-0700 directory and a mode-0600 file, configure OpenClaw's `nostr` single-value file provider, and reference it from `channels.nostr.privateKey`. The plugin never opens that file directly and must never expose the resolved key through configuration, logs, errors, or status.
 
-Deploy only on OpenClaw `2026.7.2-beta.6` or newer. The plugin deliberately typechecks against the narrower `2026.6.1` public SDK surface for compatibility, but that historical package is a development-only API baseline and is not an approved runtime host.
+Deploy only on OpenClaw `2026.7.2-beta.6` or newer. The plugin deliberately compiles and typechecks against the narrower `2026.6.34` public SDK surface for compatibility, but npm currently reports advisories in that exact development-only package tree, so it is not the approved smoke-test or runtime host.
 
-`npm run audit` checks the complete dependency tree as well as production dependencies. It fails for any advisory outside the nested, development-only `openclaw@2026.6.1` SDK baseline, and it independently verifies that the deployable host tree is the patched version above. Current advisories attached to the historical baseline are therefore reported explicitly, never shipped in the plugin package, and never accepted in a runtime host.
+`npm run audit` checks the complete dependency tree as well as production dependencies. It fails for any advisory outside the nested, development-only `openclaw@2026.6.34` SDK baseline, and it independently verifies that the deployable host tree is the patched version above. Findings attached to the exact SDK baseline are reported explicitly, never shipped in the plugin package, and never accepted in the runtime smoke host.
 
 NIP-17 is transport end-to-end encryption. Plaintext exists on the OpenClaw host and is provided to the operator's configured model provider. Use least-privilege tools and sandboxing for every agent reachable through this channel.
 

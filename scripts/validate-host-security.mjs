@@ -10,7 +10,7 @@ const lock = JSON.parse(
   await readFile(new URL("../package-lock.json", import.meta.url), "utf8"),
 );
 
-const sdkBaseline = "2026.6.1";
+const sdkBaseline = "2026.6.34";
 const secureHostVersion = "2026.7.2-beta.6";
 const minimumSecureHost = `>=${secureHostVersion}`;
 if (
@@ -87,7 +87,7 @@ if (unexpected.length > 0) {
 }
 
 console.log(
-  `Validated zero production/deploy-host vulnerabilities. The development-only OpenClaw ${sdkBaseline} SDK baseline has ${baselineCount} explicitly isolated audit findings.`,
+  `Validated zero production/deploy-host vulnerabilities. The development-only OpenClaw ${sdkBaseline} SDK tree has ${baselineCount} explicitly isolated audit findings.`,
 );
 
 function getVulnerabilityCount(report) {

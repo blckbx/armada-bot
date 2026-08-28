@@ -2,7 +2,7 @@
 
 ## Agent brief
 
-Implement only this slice. Read `docs/IMPLEMENTATION_PLAN.md` first and preserve its naming, security boundaries, and OpenClaw `2026.6.1` (`2e08f0f`) compatibility requirements. Use red-green-refactor: add a focused failing test, observe the failure, implement the smallest change, then run the focused and full suites.
+Implement only this slice. Read `docs/IMPLEMENTATION_PLAN.md` first and preserve its naming, security boundaries, and OpenClaw `2026.6.34` compatibility requirements. Use red-green-refactor: add a focused failing test, observe the failure, implement the smallest change, then run the focused and full suites.
 
 ## Functional outcome
 
@@ -14,7 +14,7 @@ This is an operator-facing slice. It does not yet exchange Nostr messages.
 
 - None. This is the first slice.
 - Use `Ink-North/nostr-nip17-plugin` only as the structural template described in the main plan.
-- Treat the OpenClaw `2026.6.1` source and public SDK as authoritative.
+- Treat the OpenClaw `2026.6.34` source and public SDK as authoritative.
 
 ## In scope
 
@@ -23,7 +23,7 @@ This is an operator-facing slice. It does not yet exchange Nostr messages.
   - npm package `openclaw-armada-dm`;
   - plugin ID `armada-dm`;
   - channel ID `nostr`;
-  - exact plugin API baseline `2026.6.1` and minimum deployable host `2026.7.2-beta.6`.
+  - exact plugin API baseline `2026.6.34` and minimum deployable host `2026.7.2-beta.6`.
 - Add import-safe built runtime and setup entry points.
 - Register the single-account text-DM channel using only public SDK exports present at the pinned OpenClaw commit.
 - Add strict runtime and manifest schemas for `channels.nostr`.
@@ -36,8 +36,8 @@ This is an operator-facing slice. It does not yet exchange Nostr messages.
 ## Required tests
 
 - Manifest and package metadata agree on all identifiers and built entry paths.
-- `openclaw.plugin.json` uses the native `kind: "channel"` shape accepted by OpenClaw `2026.6.1` and rejects unknown plugin config.
-- Every `openclaw/plugin-sdk/*` import resolves against exactly `openclaw@2026.6.1`.
+- `openclaw.plugin.json` uses the native `kind: "channel"` shape accepted by OpenClaw `2026.6.34` and rejects unknown plugin config.
+- Every `openclaw/plugin-sdk/*` import resolves against exactly `openclaw@2026.6.34`.
 - Importing package/setup entries and discovering a disabled channel starts no socket, timer, or crypto transport.
 - Valid relay, policy, limit, and SecretRef configuration parses.
 - Missing/mismatched providers, wrong SecretRef provider/ID, inline/env/exec secrets, invalid relay schemes, empty relay sets, unknown keys, invalid limits, and malformed allowlist entries fail with sanitized errors.

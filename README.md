@@ -14,7 +14,7 @@ npm run package:validate
 ```
 
 The build checkout intentionally installs development dependencies, including the
-pinned OpenClaw `2026.6.1` SDK compatibility baseline. Deployments do not need
+pinned OpenClaw `2026.6.34` SDK compatibility baseline. Deployments do not need
 that development tree.
 
 From an npm-managed local OpenClaw `2026.7.2-beta.6` or newer checkout, install the built working directory:
@@ -35,9 +35,9 @@ For a standard OpenClaw installation, pack and install the managed artifact:
 
 ```bash
 npm pack
-sha256sum openclaw-armada-dm-0.1.1.tgz > openclaw-armada-dm-0.1.1.tgz.sha256
-sha256sum --check openclaw-armada-dm-0.1.1.tgz.sha256
-openclaw plugins install npm-pack:/absolute/path/openclaw-armada-dm-0.1.1.tgz
+sha256sum openclaw-armada-dm-0.1.2.tgz > openclaw-armada-dm-0.1.2.tgz.sha256
+sha256sum --check openclaw-armada-dm-0.1.2.tgz.sha256
+openclaw plugins install npm-pack:/absolute/path/openclaw-armada-dm-0.1.2.tgz
 openclaw plugins enable armada-dm
 openclaw gateway restart
 ```
@@ -53,16 +53,16 @@ Maintainers can publish the package and checksum in the repository's Releases
 section by pushing a version tag after its version bump reaches `main`:
 
 ```bash
-git tag -a v0.1.1 -m "v0.1.1"
-git push origin v0.1.1
+git tag -a v0.1.2 -m "v0.1.2"
+git push origin v0.1.2
 ```
 
 The tag must exactly match `v` followed by the version in `package.json`. The
 release workflow repeats the install, test, build, package-validation, pack, and
 checksum sequence before creating the GitHub release. It attaches
-`openclaw-armada-dm-0.1.1.tgz` and its `.sha256` checksum as release assets.
+`openclaw-armada-dm-0.1.2.tgz` and its `.sha256` checksum as release assets.
 
-The published `setup-entry.js` uses only the OpenClaw `2026.6.1` public SDK compatibility baseline, while deployment requires patched OpenClaw `2026.7.2-beta.6` or newer. It does not run a wizard, prompt for values, edit configuration, read the secret file, publish events, or start relay connections.
+The published `setup-entry.js` uses only the OpenClaw `2026.6.34` public SDK compatibility baseline, while deployment requires patched OpenClaw `2026.7.2-beta.6` or newer. It does not run a wizard, prompt for values, edit configuration, read the secret file, publish events, or start relay connections.
 
 ## Migrating another Nostr channel
 

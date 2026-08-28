@@ -11,7 +11,7 @@ An owner can attach an image, audio recording, video, PDF, or other OpenClaw-sup
 ## Dependencies
 
 - Slices 01–09 complete and green.
-- OpenClaw public plugin SDK exactly `2026.6.1`.
+- OpenClaw public plugin SDK exactly `2026.6.34`.
 - NIP-17 kind-15 file-message format.
 - Armada client interoperability at `soapbox-pub/armada` commit `5b99f88d309052abc1eeb4f0b2ef437de086e709`.
 

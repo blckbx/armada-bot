@@ -42,7 +42,7 @@ The operator configures exactly one owner `npub` or hex public key in `allowFrom
 
 - Configuration accepts one normalized `npub`, hex, or `nostr:` public key.
 - Configuration rejects an empty allowlist, multiple entries, wildcard, malformed entries, and every policy other than `allowlist`.
-- The authenticated configured owner reaches the exact OpenClaw 2026.6.1 ingress and direct-DM dispatcher surfaces.
+- The authenticated configured owner reaches the exact OpenClaw 2026.6.34 ingress and direct-DM dispatcher surfaces.
 - A different authenticated inner sender causes zero model dispatches and receives no response.
 - The outer ephemeral wrapper author is never compared with `allowFrom`.
 - `useDefaultPairingStore` is false so stale OpenClaw pairing approvals cannot authorize another sender.

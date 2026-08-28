@@ -2,11 +2,11 @@
 
 ## Agent brief
 
-Finish operator documentation, diagnostics, interoperability evidence, and release validation after all functional and resilience slices are green. There is no interactive setup wizard. Operators configure the file SecretRef and `channels.nostr` directly through OpenClaw configuration. Keep only the minimal import-safe setup entry required by the OpenClaw `2026.6.1` package contract.
+Finish operator documentation, diagnostics, interoperability evidence, and release validation after all functional and resilience slices are green. There is no interactive setup wizard. Operators configure the file SecretRef and `channels.nostr` directly through OpenClaw configuration. Keep only the minimal import-safe setup entry required by the OpenClaw `2026.6.34` package contract.
 
 ## Functional outcome
 
-An operator who provisioned `/path/to/.openclaw/secrets/nostr_nsec`, installed the package on OpenClaw `2026.7.2-beta.6` or newer, and added the documented `secrets.providers.nostr` and `channels.nostr` configuration can restart the gateway, see a truthful sanitized probe, and hold a multi-turn encrypted conversation with the bot from the current Armada client. With `publishInbox: true`, gateway startup publishes and verifies the bot's kind-10050 inbox automatically. The package continues to use only the OpenClaw `2026.6.1` (`2e08f0f`) public SDK baseline.
+An operator who provisioned `/path/to/.openclaw/secrets/nostr_nsec`, installed the package on OpenClaw `2026.7.2-beta.6` or newer, and added the documented `secrets.providers.nostr` and `channels.nostr` configuration can restart the gateway, see a truthful sanitized probe, and hold a multi-turn encrypted conversation with the bot from the current Armada client. With `publishInbox: true`, gateway startup publishes and verifies the bot's kind-10050 inbox automatically. The package continues to use only the OpenClaw `2026.6.34` public SDK baseline.
 
 ## Dependencies
 
@@ -36,7 +36,7 @@ An operator who provisioned `/path/to/.openclaw/secrets/nostr_nsec`, installed t
 - The minimal setup entry and runtime package entries import without sockets, timers, configuration mutation, secret access, or transport startup.
 - `publishInbox: true` publishes and verifies the configured Armada/Ditto/Dreamith kind-10050 tags during gateway startup; failure remains visible and prevents ready status.
 - Status distinguishes invalid configuration/identity, unreachable relays, AUTH state, subscription state, missing inbox announcement, dedupe degradation, queue drops, authenticated rate limiting, partial relay operation, and healthy operation without payloads or relationship metadata.
-- CI runs the full tests, coverage, lint, typecheck, format check, build, manifest/package validation, package dry-run, package-content allowlist, exact `2026.6.1` SDK-import baseline, built-artifact smoke test, and complete-tree/zero-runtime-vulnerability audit.
+- CI runs the full tests, coverage, lint, typecheck, format check, build, manifest/package validation, package dry-run, package-content allowlist, exact `2026.6.34` SDK-import baseline, built-artifact smoke test, and complete-tree/zero-runtime-vulnerability audit.
 - A built-artifact test imports emitted JavaScript and proves an Armada-compatible NIP-17 request/reply encryption round trip without importing TypeScript source modules.
 
 ## Manual Armada staging
