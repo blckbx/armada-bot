@@ -11,30 +11,24 @@ const lock = JSON.parse(
 );
 
 const sdkBaseline = "2026.6.34";
-const secureHostVersion = "2026.7.2-beta.6";
-const minimumSecureHost = `>=${secureHostVersion}`;
+const minimumHost = `>=${sdkBaseline}`;
 if (
-  pkg.peerDependencies?.openclaw !== minimumSecureHost ||
-  pkg.openclaw?.install?.minHostVersion !== minimumSecureHost ||
+  pkg.peerDependencies?.openclaw !== minimumHost ||
+  pkg.openclaw?.install?.minHostVersion !== minimumHost ||
   pkg.devDependencies?.openclaw !== sdkBaseline ||
-  pkg.devDependencies?.["openclaw-host"] !==
-    `npm:openclaw@${secureHostVersion}` ||
+  pkg.devDependencies?.["openclaw-host"] !== undefined ||
   pkg.dependencies?.openclaw !== undefined
 ) {
-  throw new Error("OpenClaw host security and SDK baseline metadata disagree.");
+  throw new Error("OpenClaw host and SDK baseline metadata disagree.");
 }
 
 const baselineLock = lock.packages?.["node_modules/openclaw"];
-const hostLock = lock.packages?.["node_modules/openclaw-host"];
 if (
   baselineLock?.version !== sdkBaseline ||
   baselineLock.dev !== true ||
-  hostLock?.version !== secureHostVersion ||
-  hostLock.dev !== true
+  lock.packages?.["node_modules/openclaw-host"] !== undefined
 ) {
-  throw new Error(
-    "OpenClaw host security and SDK baseline lock entries disagree.",
-  );
+  throw new Error("OpenClaw host and SDK baseline lock entries disagree.");
 }
 
 function runAudit(args) {
@@ -66,15 +60,12 @@ const baselineCount = getVulnerabilityCount(completeAudit);
 const vulnerabilities = Object.values(completeAudit.vulnerabilities ?? {});
 const baselineRoot = "node_modules/openclaw";
 const baselinePrefix = "node_modules/openclaw/node_modules/";
-const forbiddenHostPrefix = "node_modules/openclaw-host";
 const unexpected = vulnerabilities.filter(
   (vulnerability) =>
     !Array.isArray(vulnerability.nodes) ||
     vulnerability.nodes.length === 0 ||
     vulnerability.nodes.some(
-      (node) =>
-        node.startsWith(forbiddenHostPrefix) ||
-        (node !== baselineRoot && !node.startsWith(baselinePrefix)),
+      (node) => node !== baselineRoot && !node.startsWith(baselinePrefix),
     ),
 );
 
@@ -87,7 +78,7 @@ if (unexpected.length > 0) {
 }
 
 console.log(
-  `Validated zero production/deploy-host vulnerabilities. The development-only OpenClaw ${sdkBaseline} SDK tree has ${baselineCount} explicitly isolated audit findings.`,
+  `Validated zero plugin production vulnerabilities. The development-only OpenClaw ${sdkBaseline} SDK/runtime smoke tree has ${baselineCount} explicitly isolated audit findings; audit the installed host separately before deployment.`,
 );
 
 function getVulnerabilityCount(report) {

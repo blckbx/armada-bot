@@ -67,7 +67,7 @@ try {
     OPENCLAW_STATE_DIR: managedState,
     OPENCLAW_CONFIG_PATH: managedConfig,
   };
-  const openclawCli = join(root, "node_modules/openclaw-host/openclaw.mjs");
+  const openclawCli = join(root, "node_modules/openclaw/openclaw.mjs");
   execFileSync(
     process.execPath,
     [openclawCli, "plugins", "install", `npm-pack:${tarball}`, "--force"],

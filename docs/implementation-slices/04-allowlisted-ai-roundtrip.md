@@ -70,7 +70,7 @@ With `dmPolicy: "allowlist"` and the operator's user `npub` in `allowFrom`:
 
 ## Exit gate
 
-- The complete encrypted request/AI-response path typechecks against the exact OpenClaw `2026.6.34` SDK baseline and passes on the patched deployable host with a mocked model response.
+- The complete encrypted request/AI-response path typechecks against and passes on the exact OpenClaw `2026.6.34` minimum host with a mocked model response.
 - Two different allowlisted senders receive independent direct sessions.
 - A user without a valid kind-10050 gets a clear delivery failure; the plugin does not silently publish to Ditto/Dreamith.
 - All earlier slice tests remain green.
