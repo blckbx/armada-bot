@@ -37,6 +37,7 @@ try {
     "npm",
     [
       "install",
+      "--omit=dev",
       "--ignore-scripts",
       "--no-package-lock",
       "--legacy-peer-deps",

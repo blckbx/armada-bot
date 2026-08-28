@@ -7,16 +7,20 @@
 Build the JavaScript artifact before installing it:
 
 ```bash
-npm install
+npm ci
 npm test
 npm run build
 npm run package:validate
 ```
 
+The build checkout intentionally installs development dependencies, including the
+pinned OpenClaw `2026.6.1` SDK compatibility baseline. Deployments do not need
+that development tree.
+
 From an npm-managed local OpenClaw `2026.7.2-beta.6` or newer checkout, install the built working directory:
 
 ```bash
-npm install /absolute/path/to/openclaw-armada-dm
+npm install --omit=dev /absolute/path/to/openclaw-armada-dm
 openclaw config set plugins.load.paths \
   '["/absolute/path/to/openclaw-checkout/node_modules/openclaw-armada-dm"]' \
   --strict-json
