@@ -19,6 +19,7 @@ describe("package and manifest contracts", () => {
     const channel = metadata.channel as Record<string, unknown>;
 
     expect(pkg.name).toBe("openclaw-armada-dm");
+    expect(pkg.version).toBe("0.1.2");
     expect(manifest.id).toBe("armada-dm");
     expect(manifest.kind).toBe("channel");
     expect(manifest.channels).toEqual(["nostr"]);
@@ -27,16 +28,16 @@ describe("package and manifest contracts", () => {
     expect(metadata.setupEntry).toBe("./dist/setup-entry.js");
     expect(metadata).not.toHaveProperty("runtimeExtensions");
     expect(metadata).not.toHaveProperty("runtimeSetupEntry");
-    expect(metadata.compat).toEqual({ pluginApi: ">=2026.6.1" });
+    expect(metadata.compat).toEqual({ pluginApi: ">=2026.6.34" });
     expect(metadata.install).toMatchObject({
       minHostVersion: ">=2026.7.2-beta.6",
     });
     expect(metadata.build).toEqual({
-      openclawVersion: "2026.6.1",
-      pluginSdkVersion: "2026.6.1",
+      openclawVersion: "2026.6.34",
+      pluginSdkVersion: "2026.6.34",
     });
     expect((pkg.devDependencies as Record<string, string>).openclaw).toBe(
-      "2026.6.1",
+      "2026.6.34",
     );
     expect(
       (pkg.devDependencies as Record<string, string>)["openclaw-host"],

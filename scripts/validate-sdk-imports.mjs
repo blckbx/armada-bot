@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { URL } from "node:url";
 
-const BASELINE = "2026.6.1";
+const BASELINE = "2026.6.34";
 const SUBPATHS = [
   "openclaw/plugin-sdk/core",
   "openclaw/plugin-sdk/json-schema-runtime",

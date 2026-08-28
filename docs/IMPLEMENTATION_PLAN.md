@@ -9,7 +9,7 @@ Build a standalone OpenClaw channel plugin that lets people talk privately to an
 - NIP-59 `kind:13` seals and `kind:1059` gift wraps;
 - one-to-one direct conversations only.
 
-The plugin should use [`Ink-North/nostr-nip17-plugin`](https://github.com/Ink-North/nostr-nip17-plugin) as the recognizable OpenClaw channel-integration template: package metadata, runtime/setup entry separation, channel registration, runtime injection, the simple `dmPolicy: "allowlist"`/`allowFrom` configuration, and local npm installation. Its legacy portable-bundle metadata and Nostr transport must not be copied blindly; the implementation must use the native plugin contract and public SDK exports available in OpenClaw `2026.6.1` (`2e08f0f`) plus the stricter cryptographic, routing, replay, and lifecycle requirements in this plan.
+The plugin should use [`Ink-North/nostr-nip17-plugin`](https://github.com/Ink-North/nostr-nip17-plugin) as the recognizable OpenClaw channel-integration template: package metadata, runtime/setup entry separation, channel registration, runtime injection, the simple `dmPolicy: "allowlist"`/`allowFrom` configuration, and local npm installation. Its legacy portable-bundle metadata and Nostr transport must not be copied blindly; the implementation must use the native plugin contract and public SDK exports available in OpenClaw `2026.6.34` plus the stricter cryptographic, routing, replay, and lifecycle requirements in this plan.
 
 [`Tunnelsats/nostr-community-bot`](https://github.com/Tunnelsats/nostr-community-bot) is only a technical reference for Nostr cryptography, relay lifecycle, replay protection, and tests. The plugin has no TunnelSats product, identity, namespace, business-logic, or runtime dependency.
 
@@ -29,7 +29,7 @@ This plan is based on the following implementations and specifications as of 202
 - [`nostr-community-bot` at `7ecc4b4`](https://github.com/Tunnelsats/nostr-community-bot/tree/7ecc4b4053a961f163e428fc08e487b07e571e72), especially `src/nip17-dm.ts`, `src/relay-connection-manager.ts`, `src/bot.ts`, and their Vitest suites;
 - [`Ink-North/nostr-nip17-plugin` at `e824a82`](https://github.com/Ink-North/nostr-nip17-plugin/tree/e824a82e04eea27aa7a237b7feeeca9bead3e0d1), especially its `package.json`, `openclaw.plugin.json`, portable runtime/setup entry separation, channel registration, runtime injection, and simple allowlist configuration. Its package-name mismatch, legacy portable-bundle shape, permissive schemas, NIP-04 support, outer-event dedupe, and direct relay transport are explicitly not normative for this project;
 - [Armada at `5b99f88`](https://github.com/soapbox-pub/armada/tree/5b99f88d309052abc1eeb4f0b2ef437de086e709), especially its [NIP-17 protocol implementation](https://github.com/soapbox-pub/armada/blob/5b99f88d309052abc1eeb4f0b2ef437de086e709/src/lib/nip17/protocol.ts), [DM transport](https://github.com/soapbox-pub/armada/blob/5b99f88d309052abc1eeb4f0b2ef437de086e709/src/hooks/useDm17.ts), and [relay defaults](https://github.com/soapbox-pub/armada/blob/5b99f88d309052abc1eeb4f0b2ef437de086e709/src/lib/platform.ts);
-- [OpenClaw `2026.6.1` at `2e08f0f`](https://github.com/openclaw/openclaw/tree/2e08f0f4221f522b60423ed6ffd83427942b28de), particularly its official Nostr channel, public plugin-SDK exports, package/setup contract, SecretRef implementation, persistent-dedupe helper, and channel-plugin guide as they existed at that revision;
+- [OpenClaw `2026.6.34` at `5c38f99`](https://github.com/openclaw/openclaw/tree/v2026.6.34), particularly its official Nostr channel, public plugin-SDK exports, package/setup contract, SecretRef implementation, persistent-dedupe helper, and channel-plugin guide as they existed at that revision;
 - [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md), [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md), [NIP-59](https://github.com/nostr-protocol/nips/blob/master/59.md), and [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md).
 
 Important interoperability finding: Armada is the client, not one fixed messaging server. Its builds read and write NIP-17 DMs through configurable DM/app relays and discover a recipient's `kind:10050` inbox relays. The plugin defaults its own inbox to `wss://relay.armada.buzz`, `wss://relay.ditto.pub`, and `wss://relay.dreamith.to`; discovery defaults to Ditto and Dreamith. A recipient's valid `kind:10050` list is authoritative. It also publishes a separate self-addressed gift wrap for sender-side recovery.
@@ -182,7 +182,7 @@ Crypto and relay code must not import OpenClaw agent/runtime internals. OpenClaw
 
 ### Reuse from `Ink-North/nostr-nip17-plugin`
 
-Use the pinned Ink-North repository as the OpenClaw integration template, with the OpenClaw `2026.6.1` source and documentation taking precedence over legacy template fields:
+Use the pinned Ink-North repository as the OpenClaw integration template, with the OpenClaw `2026.6.34` source and documentation taking precedence over legacy template fields:
 
 | Template area                          | Action in this repository                                                                                                                                                                                               |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -196,13 +196,13 @@ Do not copy the template's NIP-04 path, multi-account behavior, permissive schem
 
 ### Reuse from `nostr-community-bot`
 
-| Template area                     | Action in this repository                                                                                                                                                                                                                                                     |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/nip17-dm.ts`                 | Port the strict gift-wrap/seal/rumor validation and sanitized errors into `src/nip17.ts`. Extend automatic reply creation for recipient relay hints and sender self-copies.                                                                                                   |
-| `src/relay-connection-manager.ts` | Reuse the lifecycle model: concurrent connections, bounded exponential reconnect, subscription restoration, status snapshots, idempotent stop, and publish-to-at-least-one semantics. Split connection/auth details into `relay-session.ts`.                                  |
-| `src/bot.ts` replay handling      | Reuse only rumor-age checks, bounded in-memory in-flight suppression, and stop-time dispatch guards. Replace its durable behavior with OpenClaw 2026.6.1's `createClaimableDedupe` persistent claim/commit/release helper, keyed by account and authenticated inner rumor ID. |
-| `event-utils.ts` key parsing      | Reuse the sanitized decoder and scalar validation, but expose only the file-resolved `nsec` input path in v1; raw hex private keys are rejected. Integrate it with OpenClaw `SecretInput` resolution.                                                                         |
-| Vitest suites                     | Port the positive/negative cryptographic vectors and relay lifecycle tests before implementation changes.                                                                                                                                                                     |
+| Template area                     | Action in this repository                                                                                                                                                                                                                                                      |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/nip17-dm.ts`                 | Port the strict gift-wrap/seal/rumor validation and sanitized errors into `src/nip17.ts`. Extend automatic reply creation for recipient relay hints and sender self-copies.                                                                                                    |
+| `src/relay-connection-manager.ts` | Reuse the lifecycle model: concurrent connections, bounded exponential reconnect, subscription restoration, status snapshots, idempotent stop, and publish-to-at-least-one semantics. Split connection/auth details into `relay-session.ts`.                                   |
+| `src/bot.ts` replay handling      | Reuse only rumor-age checks, bounded in-memory in-flight suppression, and stop-time dispatch guards. Replace its durable behavior with OpenClaw 2026.6.34's `createClaimableDedupe` persistent claim/commit/release helper, keyed by account and authenticated inner rumor ID. |
+| `event-utils.ts` key parsing      | Reuse the sanitized decoder and scalar validation, but expose only the file-resolved `nsec` input path in v1; raw hex private keys are rejected. Integrate it with OpenClaw `SecretInput` resolution.                                                                          |
+| Vitest suites                     | Port the positive/negative cryptographic vectors and relay lifecycle tests before implementation changes.                                                                                                                                                                      |
 
 ### Deliberately omit from `nostr-community-bot`
 
@@ -212,7 +212,7 @@ Do not copy the template's NIP-04 path, multi-account behavior, permissive schem
 - any advertised community, group, or Armada Concord behavior;
 - publishing every reply blindly to only the configured relay set.
 
-### Reuse from the OpenClaw 2026.6.1 channel SDK and bundled Nostr/Buzz plugins
+### Reuse from the OpenClaw 2026.6.34 channel SDK and bundled Nostr/Buzz plugins
 
 Reuse patterns, not room behavior:
 
@@ -235,11 +235,11 @@ Do not port Buzz room discovery, membership, directory groups, group allowlists,
 - `openclaw.setupEntry: "./dist/setup-entry.js"`;
 - channel metadata with ID `nostr`;
 - `openclaw.install.npmSpec: "openclaw-armada-dm"`, `minHostVersion: ">=2026.7.2-beta.6"`, and npm as the default remote choice if the package is ever published;
-- `openclaw.compat.pluginApi: ">=2026.6.1"`;
-- `openclaw.build.openclawVersion` and `openclaw.build.pluginSdkVersion` set to `2026.6.1`;
+- `openclaw.compat.pluginApi: ">=2026.6.34"`;
+- `openclaw.build.openclawVersion` and `openclaw.build.pluginSdkVersion` set to `2026.6.34`;
 - all runtime imports, including `nostr-tools`, declared in `dependencies`; OpenClaw remains a `peerDependency` and test/dev dependency.
 
-`openclaw.plugin.json` must declare plugin ID `armada-dm`, `kind: "channel"`, channel `nostr`, an inline strict plugin-config schema, and the native-plugin metadata accepted by OpenClaw 2026.6.1. It must not declare the Ink-North template's legacy bundled-channel kind. The runtime channel schema remains the authority for `channels.nostr`; plugin-entry config is empty in single-account v1 and rejects unknown keys.
+`openclaw.plugin.json` must declare plugin ID `armada-dm`, `kind: "channel"`, channel `nostr`, an inline strict plugin-config schema, and the native-plugin metadata accepted by OpenClaw 2026.6.34. It must not declare the Ink-North template's legacy bundled-channel kind. The runtime channel schema remains the authority for `channels.nostr`; plugin-entry config is empty in single-account v1 and rejects unknown keys.
 
 Published or packed artifacts must already contain built JavaScript. Installation must not depend on `postinstall`, `prepare`, TypeScript execution, network access, or lifecycle scripts because OpenClaw's managed npm installer ignores package scripts.
 
@@ -252,18 +252,18 @@ The README must explain that `npm install --omit=dev` is only the contract for a
 
 Because `nostr` is a shared channel ID, installation must fail clearly if another enabled plugin already owns it. The migration guide must tell operators to disable/remove the previous `nostr-nip17` or bundled Nostr channel plugin while preserving `channels.nostr` and `secrets.providers.nostr`, then enable plugin ID `armada-dm`. Existing pairing approvals may remain on disk but are deliberately ignored by this plugin; installation must not delete them or broaden the configured owner. Contract tests must prove that ownership conflicts do not silently select one implementation.
 
-### OpenClaw 2026.6.1 compatibility baseline
+### OpenClaw 2026.6.34 compatibility baseline
 
-OpenClaw `2026.6.1` at full commit `2e08f0f4221f522b60423ed6ffd83427942b28de` is the exact public-SDK baseline. Deployments require patched OpenClaw `2026.7.2-beta.6` or newer:
+OpenClaw `2026.6.34` at full commit `5c38f996d4059ebd9080cf74dc611ec3a17f4d50` is the exact public-SDK baseline. Deployments require patched OpenClaw `2026.7.2-beta.6` or newer:
 
-- compile and typecheck against exactly `openclaw@2026.6.1`, not a floating newer SDK;
+- compile and typecheck against exactly `openclaw@2026.6.34`, not a floating newer SDK;
 - run package discovery, setup-entry import, SecretRef resolution, channel registration, single-owner ingress, reply delivery, status, and gateway lifecycle smoke tests against that exact host build;
 - use built JavaScript directly in `openclaw.extensions`/`openclaw.setupEntry`; do not emit the later `runtimeExtensions` or `runtimeSetupEntry` fields;
 - use `resolveStableChannelMessageIngress`, `dispatchInboundDirectDmWithRuntime`, and `createClaimableDedupe`, which are present in this revision;
 - do not import the later durable ingress monitor, ingress effect-once, or later-only setup/runtime helpers;
 - fail installation on hosts older than `2026.7.2-beta.6` through `openclaw.install.minHostVersion` and `peerDependencies`, while `openclaw.compat.pluginApi` records the narrower API surface used by the plugin.
 
-CI must run an API-baseline test that imports every declared `openclaw/plugin-sdk/*` subpath from an installed `openclaw@2026.6.1` package. Documentation from `main` is informative only; the pinned source tree is authoritative for v1.
+CI must run an API-baseline test that imports every declared `openclaw/plugin-sdk/*` subpath from an installed `openclaw@2026.6.34` package. Documentation from `main` is informative only; the pinned source tree is authoritative for v1.
 
 ## 8. Configuration contract
 
@@ -354,7 +354,7 @@ Field behavior:
 
 Environment fallbacks may support only the non-secret `ARMADA_DM_RELAYS` and `ARMADA_DM_DISCOVERY_RELAYS` lists. The Nostr private key has no environment or inline fallback in v1. Secret values must never be copied into status objects, thrown errors, or logs.
 
-The manifest's `channelConfigs.nostr.schema` must mirror the runtime Zod schema exactly and use `additionalProperties: false`. The plugin-entry `configSchema` is separately strict and empty for single-account v1. Set `peerDependencies.openclaw` to `>=2026.7.2-beta.6`, compile and typecheck against exactly `openclaw@2026.6.1`, and upgrade the baseline deliberately with contract tests. Do not import an SDK symbol merely because it exists in newer OpenClaw documentation.
+The manifest's `channelConfigs.nostr.schema` must mirror the runtime Zod schema exactly and use `additionalProperties: false`. The plugin-entry `configSchema` is separately strict and empty for single-account v1. Set `peerDependencies.openclaw` to `>=2026.7.2-beta.6`, compile and typecheck against exactly `openclaw@2026.6.34`, and upgrade the baseline deliberately with contract tests. Do not import an SDK symbol merely because it exists in newer OpenClaw documentation.
 
 ### Relay URL and outbound-network policy
 
@@ -447,7 +447,7 @@ Publication should reuse an active authenticated session when possible and open 
 
 Deduplicate by authenticated inner rumor ID, not outer wrap ID. The same rumor can arrive through several relays or be rewrapped, and each copy must still produce only one agent turn.
 
-OpenClaw 2026.6.1 does not expose the later durable ingress monitor/effect-once APIs to this plugin. Use its public `createClaimableDedupe` helper from `openclaw/plugin-sdk/persistent-dedupe` for logical replay protection, and rely on relay persistence plus the backdated subscription for crash recovery:
+OpenClaw 2026.6.34 does not expose the later durable ingress monitor/effect-once APIs to this plugin. Use its public `createClaimableDedupe` helper from `openclaw/plugin-sdk/persistent-dedupe` for logical replay protection, and rely on relay persistence plus the backdated subscription for crash recovery:
 
 1. At the single receive chokepoint, admit the bounded raw wrap to an account-scoped in-memory queue; a relay WebSocket has no acknowledgement/cursor that can be durably gated here.
 2. Process the queue through bounded structural validation and decryption.
@@ -456,7 +456,7 @@ OpenClaw 2026.6.1 does not expose the later durable ingress monitor/effect-once 
 5. Call `commit` only after the OpenClaw inbound dispatch returns successfully. Call `release` on validation/authorization/dispatch failure before success so relay redelivery can retry.
 6. Configure the persistent JSON store in the OpenClaw-resolved plugin state directory with a TTL at least as long as `maxMessageAgeSeconds`, a bounded file entry count sized for the expected message rate, and the SDK's cross-process file lock.
 
-Wrap `createClaimableDedupe` because its 2026.6.1 persistent implementation reports disk errors through `onDiskError` and otherwise falls back to memory. A disk error during `claim` must release/reject the event and stop new account dispatch until persistence is healthy. A disk error during post-dispatch `commit` cannot undo an already completed turn: retain in-memory suppression, mark the account degraded, stop intake, and surface a sanitized operator error. Never quietly continue normal operation with memory-only replay state.
+Wrap `createClaimableDedupe` because its 2026.6.34 persistent implementation reports disk errors through `onDiskError` and otherwise falls back to memory. A disk error during `claim` must release/reject the event and stop new account dispatch until persistence is healthy. A disk error during post-dispatch `commit` cannot undo an already completed turn: retain in-memory suppression, mark the account degraded, stop intake, and surface a sanitized operator error. Never quietly continue normal operation with memory-only replay state.
 
 On restart, reconnect with the configured backdated `since`; conforming relays can redeliver stored gift wraps. This is relay-dependent recovery, not a local durable raw-event queue, and the limitation must be documented. The system does not claim mathematically exact-once agent side effects: a crash after agent/tool effects but before the dedupe commit can replay the turn. Acceptance guarantees one dispatch for ordinary cross-relay replay, rewrapping, reconnect, and same-process concurrency cases, while agent/tool permissions must assume this at-least-once crash edge.
 
@@ -525,7 +525,7 @@ After cryptographic validation, resolve the OpenClaw route with:
 - reply target: canonical sender target;
 - reply-to ID: inbound rumor ID.
 
-Run OpenClaw 2026.6.1's `resolveStableChannelMessageIngress` with channel ID `nostr`, account ID, a Nostr-pubkey `StableChannelIngressIdentityParams`, `useDefaultPairingStore: false`, the canonical sender subject/conversation, fixed `dmPolicy: "allowlist"`, the sole raw `allowFrom` owner, and command facts. Pass its sender and command decisions into `dispatchInboundDirectDmWithRuntime`; do not reconstruct authorization from message fields later. Use the bundled 2026.6.1 Nostr channel as the compile-time integration reference, while retaining this plan's stricter log redaction and NIP-17 authentication.
+Run OpenClaw 2026.6.34's `resolveStableChannelMessageIngress` with channel ID `nostr`, account ID, a Nostr-pubkey `StableChannelIngressIdentityParams`, `useDefaultPairingStore: false`, the canonical sender subject/conversation, fixed `dmPolicy: "allowlist"`, the sole raw `allowFrom` owner, and command facts. Pass its sender and command decisions into `dispatchInboundDirectDmWithRuntime`; do not reconstruct authorization from message fields later. Use the bundled 2026.6.34 Nostr channel as the compile-time integration reference, while retaining this plan's stricter log redaction and NIP-17 authentication.
 
 The agent-facing body may label the sender with a short `npub`, but the stable ID remains hex. Do not fetch mutable profiles in v1.
 
@@ -543,7 +543,7 @@ Return the inner rumor ID as `messageId`; outer wrap IDs are relay carriers and 
 
 ## 13. Manual configuration and operator experience
 
-The plugin has no interactive setup wizard. The operator provisions the dedicated secret file, configures the `nostr` single-value file provider, adds the matching `channels.nostr.privateKey` SecretRef and channel fields to `openclaw.json`, enables the plugin, reloads secrets when needed, and restarts the gateway. The minimal `setup-entry.ts` exists only because OpenClaw `2026.6.1` expects a separate import-safe package entry.
+The plugin has no interactive setup wizard. The operator provisions the dedicated secret file, configures the `nostr` single-value file provider, adds the matching `channels.nostr.privateKey` SecretRef and channel fields to `openclaw.json`, enables the plugin, reloads secrets when needed, and restarts the gateway. The minimal `setup-entry.ts` exists only because OpenClaw `2026.6.34` expects a separate import-safe package entry.
 
 The plugin must never open the configured secret path directly. OpenClaw owns path expansion, file reads, ownership/permission checks, byte limits, trailing-newline removal, and SecretRef resolution. Runtime identity validation accepts only one resolved `nsec` encoding a non-zero secp256k1 scalar and must not accept or persist it through normal channel configuration, a command-line argument, an environment variable, status, or logs.
 
@@ -578,8 +578,8 @@ Slices are sequential: an agent starts only after every dependency's exit gate i
 
 - Manifest recognizes exactly the `nostr` channel under plugin ID `armada-dm`.
 - Package name, install hint, plugin ID, channel ID, source entries, and built runtime entries are mutually consistent.
-- Manifest uses `kind: "channel"`; package entries point directly to built JavaScript; compatibility/install/build metadata all name OpenClaw `2026.6.1`; later-only runtime-entry fields are absent.
-- Every imported `openclaw/plugin-sdk/*` subpath resolves and typechecks from exactly `openclaw@2026.6.1`.
+- Manifest uses `kind: "channel"`; package entries point directly to built JavaScript; compatibility/build metadata name the OpenClaw `2026.6.34` API baseline, install metadata names the patched `2026.7.2-beta.6` minimum host, and later-only runtime-entry fields are absent.
+- Every imported `openclaw/plugin-sdk/*` subpath resolves and typechecks from exactly `openclaw@2026.6.34`.
 - Startup fails with a clear ownership diagnostic when another enabled plugin already registers channel `nostr`; migration preserves configuration but never silently replaces a runtime owner.
 - Runtime and JSON schemas accept the pre-provisioned `nostr` file provider and matching `channels.nostr.privateKey` SecretRef plus valid relay/DM-policy configuration.
 - Missing/mismatched providers, inline/env/exec secret inputs, file refs whose provider is not `nostr` or whose ID is not `value`, invalid protocols, empty relay sets, unknown keys, bad recovery/age/skew values, and invalid allowlist entries fail with sanitized errors.
@@ -594,7 +594,7 @@ Slices are sequential: an agent starts only after every dependency's exit gate i
 **Exit**
 
 - `npm test`, `npm run lint`, `npm run build`, package validation, and `npm pack --dry-run` pass.
-- `npm run audit` reports zero production and deploy-host vulnerabilities, checks the complete tree, and rejects every finding outside the explicitly isolated development-only `openclaw@2026.6.1` SDK baseline.
+- `npm run audit` reports zero production and deploy-host vulnerabilities, checks the complete tree, and rejects every finding outside the explicitly isolated development-only `openclaw@2026.6.34` SDK baseline.
 - A clean npm-managed local patched OpenClaw host discovers the plugin after `npm install --omit=dev /absolute/path/to/openclaw-armada-dm`; a clean managed patched host also discovers the packed tarball through `npm-pack:`.
 - The migration smoke test disables the prior Nostr plugin, preserves `secrets.providers.nostr` and `channels.nostr`, configures exactly one owner, enables plugin `armada-dm`, audits/reloads secrets, restarts the gateway, and proves existing `nostr` pairing approvals are ignored rather than deleted or imported.
 
@@ -648,7 +648,7 @@ Slices are sequential: an agent starts only after every dependency's exit gate i
 **Red**
 
 - Cross-relay duplicates and differently wrapped copies of one rumor cause one dispatch.
-- Raw wraps enter a bounded in-memory queue; inner-rumor dedupe is claimed with OpenClaw 2026.6.1's `createClaimableDedupe` after authentication and committed only after successful dispatch.
+- Raw wraps enter a bounded in-memory queue; inner-rumor dedupe is claimed with OpenClaw 2026.6.34's `createClaimableDedupe` after authentication and committed only after successful dispatch.
 - A failed dispatch releases the claim; a successful dispatch commits it; differently wrapped and concurrent copies cannot both dispatch during normal operation.
 - Dedupe disk failures stop account intake and surface a sanitized degraded state rather than silently continuing with memory-only replay protection.
 - Restart tests redeliver stored wraps through the loopback relay and exercise the documented crash window; no test asserts a later durable-ingress API or impossible absolute exactly-once side effects.
@@ -661,7 +661,7 @@ Slices are sequential: an agent starts only after every dependency's exit gate i
 
 **Green**
 
-- Implement the bounded receive queue, 2026.6.1 claimable-dedupe compatibility adapter, age/skew gate, `inbound.ts`, and gateway dispatch wiring.
+- Implement the bounded receive queue, 2026.6.34 claimable-dedupe compatibility adapter, age/skew gate, `inbound.ts`, and gateway dispatch wiring.
 - Build the exact channel inbound context from the host ingress result.
 
 **Exit**
@@ -721,7 +721,7 @@ Slices are sequential: an agent starts only after every dependency's exit gate i
 - Run a full encrypted round trip: disposable Armada-like sender -> relay -> plugin -> mocked OpenClaw dispatch -> encrypted reply -> sender decrypt.
 - Assert kind-1059 carrier events contain neither message plaintext nor the real sender pubkey outside encrypted layers. Separately assert and document that a relay receiving a NIP-42 AUTH event can observe the authenticating bot pubkey even though AUTH is not published as a stored DM event.
 - Assert package import, setup import, and disabled-channel discovery do not start background work.
-- Run tests, coverage, lint, build, native package/manifest validation, the 2026.6.1 SDK-import baseline, both local-install smoke paths, package dry-run, package-content allowlist, and the complete-tree/zero-runtime-vulnerability audit in CI.
+- Run tests, coverage, lint, build, native package/manifest validation, the 2026.6.34 SDK-import baseline, both local-install smoke paths, package dry-run, package-content allowlist, and the complete-tree/zero-runtime-vulnerability audit in CI.
 
 **Manual staging**
 
@@ -737,7 +737,7 @@ Slices are sequential: an agent starts only after every dependency's exit gate i
 
 **Release**
 
-- Pack an initial prerelease and test both local `npm install --omit=dev` and OpenClaw-managed `npm-pack:` installation against the exact `2026.6.1` API baseline and a deployable OpenClaw `2026.7.2-beta.6` or newer host. Registry publication is optional.
+- Pack an initial prerelease and test both local `npm install --omit=dev` and OpenClaw-managed `npm-pack:` installation against the exact `2026.6.34` API baseline and a deployable OpenClaw `2026.7.2-beta.6` or newer host. Registry publication is optional.
 - Promote to `1.0.0` only after the current Armada client initiates a conversation, receives an automatic reply, and the bot safely recognizes its recovery copy.
 
 ## 15. Required documentation
@@ -762,7 +762,7 @@ The README should include:
 The first release is complete when all of the following are true:
 
 - An npm-managed local OpenClaw checkout can discover the plugin after local `npm install --omit=dev`, and a clean standard OpenClaw installation can install the packed package through `npm-pack:`; both can configure, enable, disable, inspect, and remove it.
-- All required manual configuration, secret, channel, single-owner ingress, reply-delivery, status, and lifecycle flows use only the OpenClaw `2026.6.1` (`2e08f0f`) public SDK surface, and the package advertises patched OpenClaw `2026.7.2-beta.6` as its minimum deployable host.
+- All required manual configuration, secret, channel, single-owner ingress, reply-delivery, status, and lifecycle flows use only the OpenClaw `2026.6.34` public SDK surface, and the package advertises patched OpenClaw `2026.7.2-beta.6` as its minimum deployable host.
 - A pre-existing owner of channel `nostr` produces a clear conflict; migration to plugin `armada-dm` preserves the operator's `channels.nostr` and `secrets.providers.nostr` configuration only after the previous owner is disabled or removed.
 - The plugin exposes direct text chat and encrypted inbound-media capability only.
 - A valid Armada NIP-17 kind-14 DM reaches the intended OpenClaw agent once under cross-relay replay, rewrapping, reconnect, and concurrent-delivery tests; residual process-crash semantics are documented accurately rather than described as absolute exactly-once execution.
